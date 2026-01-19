@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+langchain
+langchain-community
+pydantic
+numpy
+pandas
+scikit-learn
+
+
