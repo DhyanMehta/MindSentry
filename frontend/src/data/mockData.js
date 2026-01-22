@@ -2,26 +2,108 @@ export const mockDashboard = {
   wellnessScore: 78,
   emotion: 'Calm',
   stressLevel: 'Low',
-  sleepQuality: 82,
   focus: 74,
   streak: 5,
+};
+
+export const mockMoodTrend = {
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  datasets: [
+    {
+      data: [60, 65, 70, 75, 72, 78, 80],
+    },
+  ],
+};
+
+export const mockStressTrend = {
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  datasets: [
+    {
+      data: [40, 35, 30, 25, 28, 22, 20],
+    },
+  ],
+};
+
+export const mockSleepTrend = {
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  datasets: [
+    {
+      data: [7, 7.5, 6.8, 8, 7.2, 7.9, 8.1],
+    },
+  ],
 };
 
 export const mockInsights = [
   {
     title: 'Stress spike detected yesterday',
     detail: 'Short breathing pattern at 3:15 PM while using laptop',
-    status: 'resolved',
+    status: 'alert',
+    type: 'stress',
+    longDescription: 'A significant increase in stress indicators was observed yesterday at 3:15 PM. This was correlated with sustained computer usage and a shallow breathing pattern.',
+    actionableSteps: [
+      'Practice 5-minute deep breathing exercises.',
+      'Take a 10-minute break from screen time every hour.',
+      'Consider a short walk to clear your head.',
+    ],
   },
   {
     title: 'Sleep improving',
     detail: '+12% sleep quality over last 7 days',
     status: 'positive',
+    type: 'sleep',
+    longDescription: 'Your sleep quality has shown a positive trend over the last week, with an average increase of 12%. Consistent bedtime and wake-up times may be contributing factors.',
+    actionableSteps: [
+      'Maintain consistent sleep schedule.',
+      'Avoid caffeine several hours before bedtime.',
+      'Ensure your bedroom is dark, quiet, and cool.',
+    ],
   },
   {
     title: 'Voice tone trending calm',
     detail: 'Lower variance in voice pitch this week',
     status: 'positive',
+    type: 'mood',
+    longDescription: 'Analysis of your voice patterns shows a trend towards calmness, with less variation in pitch this week. This indicates a stable emotional state.',
+    actionableSteps: [
+      'Continue practicing mindfulness.',
+      'Engage in activities that bring you joy and relaxation.',
+    ],
+  },
+  {
+    title: 'Increased screen time detected',
+    detail: 'Average 2 hours more screen time daily this week',
+    status: 'alert',
+    type: 'behavior',
+    longDescription: 'Your average daily screen time has increased by 2 hours this week. Prolonged screen time can impact sleep and mood. It\'s important to balance digital engagement with other activities.',
+    actionableSteps: [
+      'Set screen time limits for non-essential apps.',
+      'Schedule regular screen breaks.',
+      'Engage in outdoor activities or hobbies.',
+    ],
+  },
+  {
+    title: 'Consistent meditation practice',
+    detail: 'Completed 7 days of meditation without fail',
+    status: 'positive',
+    type: 'behavior',
+    longDescription: 'You have consistently completed your meditation practice for 7 days straight. This positive behavior is likely contributing to improved emotional regulation and stress reduction.',
+    actionableSteps: [
+      'Continue your meditation practice.',
+      'Explore different meditation techniques.',
+      'Share your progress with a friend or support group.',
+    ],
+  },
+  {
+    title: 'Early morning wake-ups',
+    detail: 'Waking up before 6 AM frequently this week',
+    status: 'alert',
+    type: 'sleep',
+    longDescription: 'You\'ve been waking up frequently before 6 AM this week, which might be disrupting your sleep cycle. This could be due to stress, environmental factors, or changes in routine.',
+    actionableSteps: [
+      'Review your evening routine for potential sleep disruptors.',
+      'Try a relaxing activity before bed (e.g., reading, warm bath).',
+      'Ensure your bedroom is dark, quiet, and at a comfortable temperature.',
+    ],
   },
 ];
 

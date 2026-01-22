@@ -11,4 +11,9 @@ export const colors = {
   warning: '#F9A825',
   danger: '#FF6B6B',
   divider: 'rgba(255, 255, 255, 0.08)',
+  
+  // New vibrant colors for chat screen
+  vibrantBlue: '#4A90E2',
+  vibrantGreen: '#50E3C2',
+  lightBackground: '#1E2A40',
 };

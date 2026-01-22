@@ -1,14 +1,18 @@
 import React from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { CheckInScreen } from '../screens/CheckInScreen';
 import { InsightsScreen } from '../screens/InsightsScreen';
 import { SupportScreen } from '../screens/SupportScreen';
+import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { CounselorChatScreen } from '../screens/CounselorChatScreen'; // New import
 import { colors } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 const navTheme = {
   ...DefaultTheme,
@@ -38,15 +42,24 @@ const screenOptions = ({ route }) => ({
   },
 });
 
+const MainTabNavigator = () => (
+  <Tab.Navigator screenOptions={screenOptions}>
+    <Tab.Screen name="Dashboard" component={DashboardScreen} />
+    <Tab.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check-in' }} />
+    <Tab.Screen name="Insights" component={InsightsScreen} />
+    <Tab.Screen name="Support" component={SupportScreen} />
+  </Tab.Navigator>
+);
+
 export const AppNavigator = () => {
   return (
     <NavigationContainer theme={navTheme}>
-      <Tab.Navigator screenOptions={screenOptions}>
-        <Tab.Screen name="Dashboard" component={DashboardScreen} />
-        <Tab.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check-in' }} />
-        <Tab.Screen name="Insights" component={InsightsScreen} />
-        <Tab.Screen name="Support" component={SupportScreen} />
-      </Tab.Navigator>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+        <Stack.Screen name="CounselorChat" component={CounselorChatScreen} />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 };
+
