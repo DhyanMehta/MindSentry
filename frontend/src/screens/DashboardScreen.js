@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions, Pressable } from 'react-native'; // Added Pressable
+import { useNavigation } from '@react-navigation/native'; // Added useNavigation
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { LineChart } from 'react-native-chart-kit';
+import { Ionicons } from '@expo/vector-icons'; // Added Ionicons
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { MetricCard } from '../components/MetricCard';
@@ -29,11 +31,24 @@ const chartConfig = {
 };
 
 export const DashboardScreen = () => {
+  const navigation = useNavigation(); // Initialize navigation
+
+  const handleLogout = () => {
+    // For now, simply navigate back to the Login screen.
+    // In a real app, you would clear user session/token here.
+    navigation.replace('Login');
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Animated.View entering={FadeIn.duration(800).delay(100)} style={styles.header}>
-        <Text style={styles.title}>MindSentry</Text>
-        <Text style={styles.subtitle}>AI multi-modal wellbeing monitor</Text>
+      <Animated.View entering={FadeIn.duration(800).delay(100)} style={styles.headerContainer}>
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.title}>MindSentry</Text>
+          <Text style={styles.subtitle}>AI multi-modal wellbeing monitor</Text>
+        </View>
+        <Pressable onPress={handleLogout} style={styles.logoutButton}>
+          <Ionicons name="log-out-outline" size={24} color={colors.textPrimary} />
+        </Pressable>
       </Animated.View>
 
       <Animated.View entering={SlideInDown.duration(800).delay(300)} style={styles.card}>
@@ -60,7 +75,7 @@ export const DashboardScreen = () => {
         <SectionHeader title="Mood Trend" />
         <LineChart
           data={mockMoodTrend}
-          width={screenWidth - 36} // Padding 18 on each side
+          width={screenWidth - 36}
           height={220}
           chartConfig={chartConfig}
           bezier
@@ -76,7 +91,7 @@ export const DashboardScreen = () => {
           height={220}
           chartConfig={{
             ...chartConfig,
-            color: (opacity = 1) => `rgba(255, 107, 107, ${opacity})`, // Danger color
+            color: (opacity = 1) => `rgba(255, 107, 107, ${opacity})`,
             propsForDots: {
               r: '4',
               strokeWidth: '2',
@@ -96,7 +111,7 @@ export const DashboardScreen = () => {
           height={220}
           chartConfig={{
             ...chartConfig,
-            color: (opacity = 1) => `rgba(0, 204, 201, ${opacity})`, // Secondary color
+            color: (opacity = 1) => `rgba(0, 204, 201, ${opacity})`,
             propsForDots: {
               r: '4',
               strokeWidth: '2',
@@ -130,8 +145,17 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 32,
   },
-  header: {
+  headerContainer: { // New style for the header container
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  headerTextContainer: {
+    // Styles for the title and subtitle, so they align left
+  },
+  logoutButton: {
+    padding: 8,
   },
   title: {
     ...typography.h1,
