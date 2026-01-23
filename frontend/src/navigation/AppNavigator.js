@@ -8,7 +8,9 @@ import { CheckInScreen } from '../screens/CheckInScreen';
 import { InsightsScreen } from '../screens/InsightsScreen';
 import { SupportScreen } from '../screens/SupportScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
-import { CounselorChatScreen } from '../screens/CounselorChatScreen'; // New import
+import { CounselorChatScreen } from '../screens/CounselorChatScreen';
+import { LoginScreen } from '../screens/LoginScreen'; // New import
+import { SignupScreen } from '../screens/SignupScreen'; // New import
 import { colors } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
@@ -56,6 +58,8 @@ export const AppNavigator = () => {
     <NavigationContainer theme={navTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
         <Stack.Screen name="CounselorChat" component={CounselorChatScreen} />
       </Stack.Navigator>

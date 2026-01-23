@@ -11,7 +11,7 @@ export const OnboardingScreen = () => {
   const navigation = useNavigation();
 
   const handleGetStarted = () => {
-    navigation.replace('MainTabs');
+    navigation.replace('Login');
   };
 
   return (
