@@ -2,6 +2,7 @@ export const mockDashboard = {
   wellnessScore: 78,
   emotion: 'Calm',
   stressLevel: 'Low',
+  sleepQuality: 82,
   focus: 74,
   streak: 5,
 };
