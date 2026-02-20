@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
+import { responsiveSize, cardDimensions, borderRadius, shadows } from '../utils/responsive';
 
 export const MetricCard = ({ title, value, subtitle, trend }) => {
   return (
@@ -23,11 +24,11 @@ export const MetricCard = ({ title, value, subtitle, trend }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.divider,
+    borderRadius: borderRadius.large,
+    padding: cardDimensions.padding,
+    marginBottom: responsiveSize.md,
+    borderWidth: 0,
+    ...shadows.small,
   },
   title: {
     ...typography.small,
@@ -41,7 +42,7 @@ const styles = StyleSheet.create({
   },
   value: {
     ...typography.h1,
-    color: colors.textPrimary,
+    color: colors.primary,
   },
   subtitle: {
     ...typography.small,
@@ -54,10 +55,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   trendUp: {
-    backgroundColor: 'rgba(0, 196, 140, 0.15)',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
   },
   trendDown: {
-    backgroundColor: 'rgba(255, 107, 107, 0.18)',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
   },
   trendText: {
     ...typography.small,

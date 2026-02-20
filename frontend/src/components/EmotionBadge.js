@@ -4,18 +4,21 @@ import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 
 const emotionColors = {
-  Calm: '#00C48C',
-  Happy: '#6C5CE7',
-  Focused: '#00B0FF',
-  Stressed: '#FF6B6B',
-  Tired: '#F9A825',
+  Calm: colors.vibrantBlue,
+  Happy: colors.vibrantPurple,
+  Focused: colors.primary,
+  Stressed: colors.danger,
+  Tired: colors.accent,
 };
 
 export const EmotionBadge = ({ label = 'Calm' }) => {
-  const background = emotionColors[label] || colors.secondary;
+  const base = emotionColors[label] || colors.secondary;
+  // expect hex like #RRGGBB - append alpha for light background
+  const bg = base + '26';
+  const border = base + '66';
   return (
-    <View style={[styles.container, { backgroundColor: `${background}26`, borderColor: `${background}66` }]}>
-      <Text style={[styles.text, { color: background }]}>{label}</Text>
+    <View style={[styles.container, { backgroundColor: bg, borderColor: border }]}>
+      <Text style={[styles.text, { color: base }]}>{label}</Text>
     </View>
   );
 };
