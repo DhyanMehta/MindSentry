@@ -17,13 +17,13 @@ export const InsightsScreen = () => {
   const getStatusStyle = (status) => {
     switch (status) {
       case 'positive':
-        return { backgroundColor: 'rgba(0, 196, 140, 0.15)', color: colors.success, borderColor: colors.success }; // Green for positive
+        return { backgroundColor: colors.successTint, color: colors.success, borderColor: colors.success };
       case 'alert':
-        return { backgroundColor: 'rgba(255, 107, 107, 0.18)', color: colors.danger, borderColor: colors.danger }; // Red for alert
+        return { backgroundColor: colors.dangerTint, color: colors.danger, borderColor: colors.danger };
       case 'resolved':
-        return { backgroundColor: 'rgba(108, 92, 231, 0.15)', color: colors.primary, borderColor: colors.primary }; // A neutral/primary color for resolved
+        return { backgroundColor: colors.primaryTint, color: colors.primary, borderColor: colors.primary };
       default:
-        return { backgroundColor: 'rgba(255, 255, 255, 0.1)', color: colors.textSecondary, borderColor: colors.divider }; // Default for unknown status
+        return { backgroundColor: colors.card, color: colors.textSecondary, borderColor: colors.divider };
     }
   };
 
@@ -107,83 +107,100 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
     paddingBottom: 32,
   },
   summaryCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    padding: 18,
-    marginBottom: 16,
+    backgroundColor: colors.primary,
+    borderRadius: 18,
+    borderWidth: 0,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 5,
   },
   summaryTitle: {
     ...typography.h2,
-    color: colors.textPrimary,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 18,
   },
   summarySubtitle: {
     ...typography.small,
-    color: colors.textSecondary,
-    marginTop: 6,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 10,
+    fontSize: 14,
   },
   filterContainer: {
-    marginBottom: 16,
+    marginBottom: 22,
   },
   filterScrollContent: {
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
   filterChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.divider,
+    borderWidth: 2,
+    borderColor: colors.primaryTint,
     backgroundColor: colors.card,
-    marginRight: 8,
+    marginRight: 10,
   },
   filterChipActive: {
     borderColor: colors.primary,
-    backgroundColor: 'rgba(108, 92, 231, 0.2)',
+    backgroundColor: colors.primaryTint,
   },
   filterChipText: {
     ...typography.body,
     color: colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: '700',
+    fontSize: 14,
   },
   filterChipTextActive: {
-    color: colors.textPrimary,
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: '800',
   },
   insightCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.divider,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.secondaryTint,
     padding: 18,
-    marginBottom: 12,
+    marginBottom: 14,
+    shadowColor: colors.secondary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   insightTitle: {
     ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: '800',
+    fontSize: 15,
   },
   insightDetail: {
     ...typography.small,
     color: colors.textSecondary,
-    marginTop: 6,
-    marginBottom: 8,
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 19,
   },
   statusBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    marginTop: 8,
+    borderWidth: 2,
+    marginTop: 12,
   },
   statusText: {
     ...typography.small,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 12,
   },
 });

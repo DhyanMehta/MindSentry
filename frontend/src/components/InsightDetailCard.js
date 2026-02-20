@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
+import { responsiveSize, cardDimensions, borderRadius, shadows } from '../utils/responsive';
 
 export const InsightDetailCard = ({ insight, onClose }) => {
   if (!insight) return null;
@@ -10,13 +11,13 @@ export const InsightDetailCard = ({ insight, onClose }) => {
   const getStatusStyle = (status) => {
     switch (status) {
       case 'positive':
-        return { backgroundColor: 'rgba(0, 196, 140, 0.15)', color: colors.success, borderColor: colors.success };
+        return { backgroundColor: colors.successTint, color: colors.success, borderColor: colors.success };
       case 'alert':
-        return { backgroundColor: 'rgba(255, 107, 107, 0.18)', color: colors.danger, borderColor: colors.danger };
+        return { backgroundColor: colors.dangerTint, color: colors.danger, borderColor: colors.danger };
       case 'resolved':
-        return { backgroundColor: 'rgba(108, 92, 231, 0.15)', color: colors.primary, borderColor: colors.primary };
+        return { backgroundColor: colors.primaryTint, color: colors.primary, borderColor: colors.primary };
       default:
-        return { backgroundColor: 'rgba(255, 255, 255, 0.1)', color: colors.textSecondary, borderColor: colors.divider };
+        return { backgroundColor: colors.card, color: colors.textSecondary, borderColor: colors.divider };
     }
   };
 
@@ -63,13 +64,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
-    borderWidth: 1,
-    borderColor: colors.divider,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.extraLarge,
+    padding: cardDimensions.padding,
+    width: '92%',
+    maxHeight: '82%',
+    borderWidth: 0,
+    ...shadows.large,
   },
   header: {
     flexDirection: 'row',
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 8,
     alignSelf: 'flex-start',
-    borderWidth: 1,
+    borderWidth: 0,
     marginTop: 5,
     marginBottom: 15,
   },

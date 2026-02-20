@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
+import { responsiveSize, fontSize, borderRadius, inputDimensions, buttonDimensions, isTablet } from '../utils/responsive';
 import { useCheckInState } from '../hooks/useCheckInState';
 import { SectionHeader } from '../components/SectionHeader';
 import { ApiService } from '../services/api';
 import { mockPrompts } from '../data/mockData';
 
 export const CheckInScreen = () => {
+  const navigation = useNavigation();
   const { mood, moods, setMood, note, setNote } = useCheckInState();
   const [isSaved, setIsSaved] = useState(false);
 
@@ -72,6 +76,14 @@ export const CheckInScreen = () => {
         <Pressable onPress={handleSubmit} style={styles.button}>
           <Text style={styles.buttonText}>Save check-in</Text>
         </Pressable>
+
+        <Pressable
+          onPress={() => navigation.navigate('CaptureScreen')}
+          style={styles.secondaryButton}
+        >
+          <Ionicons name="mic" size={20} color={colors.secondary} style={{ marginRight: 8 }} />
+          <Text style={styles.secondaryButtonText}>Add Voice & Face Data</Text>
+        </Pressable>
       </Animated.View>
     </ScrollView>
   );
@@ -83,90 +95,115 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 18,
-    paddingBottom: 32,
+    padding: responsiveSize.base,
+    paddingBottom: responsiveSize.xxl,
   },
   label: {
-    ...typography.body,
-    color: colors.textPrimary,
-    marginBottom: 8,
+    fontSize: fontSize.h5,
+    color: colors.primary,
+    marginBottom: responsiveSize.lg,
+    fontWeight: '700',
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 16,
+    marginBottom: responsiveSize.xl,
   },
   chip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingVertical: responsiveSize.md,
+    paddingHorizontal: responsiveSize.lg,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.divider,
+    borderWidth: 2,
+    borderColor: colors.primaryTint,
     backgroundColor: colors.card,
-    marginRight: 8,
-    marginBottom: 8,
+    marginRight: responsiveSize.md,
+    marginBottom: responsiveSize.md,
   },
   chipActive: {
     borderColor: colors.primary,
-    backgroundColor: 'rgba(108, 92, 231, 0.2)',
+    backgroundColor: colors.primaryTint,
   },
   chipText: {
-    ...typography.body,
+    fontSize: fontSize.body,
     color: colors.textSecondary,
-  },
-  chipTextActive: {
-    color: colors.textPrimary,
     fontWeight: '600',
   },
+  chipTextActive: {
+    color: colors.primary,
+    fontWeight: '800',
+  },
   input: {
-    minHeight: 120,
-    borderWidth: 1,
-    borderColor: colors.divider,
+    minHeight: responsiveSize.xl * 2,
+    borderWidth: 2,
+    borderColor: colors.secondaryTint,
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: borderRadius.medium,
+    padding: responsiveSize.base,
     color: colors.textPrimary,
-    ...typography.body,
-    marginBottom: 18,
+    fontSize: fontSize.body,
+    marginBottom: responsiveSize.xl,
   },
   promptCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.primaryTint,
     borderWidth: 1,
-    borderColor: colors.divider,
-    borderRadius: 12,
-    padding: 16, // Increased padding for better appearance
-    marginBottom: 22,
+    borderColor: colors.primaryTint,
+    borderRadius: borderRadius.medium,
+    padding: responsiveSize.lg,
+    marginBottom: responsiveSize.xl,
   },
   prompt: {
-    ...typography.small,
+    fontSize: fontSize.small,
     color: colors.textSecondary,
-    marginBottom: 6,
+    marginBottom: responsiveSize.md,
+    lineHeight: 20,
   },
   buttonContainer: {
-    marginTop: 20,
+    marginTop: responsiveSize.xl,
   },
   button: {
     backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: buttonDimensions.paddingVertical,
+    borderRadius: borderRadius.medium,
     alignItems: 'center',
+    marginBottom: responsiveSize.md,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonText: {
-    ...typography.body,
+    fontSize: fontSize.h6,
     color: '#fff',
     fontWeight: '700',
   },
-  confirmationMessage: {
-    backgroundColor: colors.success,
-    padding: 12,
-    borderRadius: 8,
+  secondaryButton: {
+    flexDirection: 'row',
+    backgroundColor: colors.secondaryTint,
+    paddingVertical: responsiveSize.lg,
+    paddingHorizontal: responsiveSize.lg,
+    borderRadius: borderRadius.medium,
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 10,
+    justifyContent: 'center',
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  secondaryButtonText: {
+    fontSize: fontSize.body,
+    color: colors.secondary,
+    fontWeight: '600',
+  },
+  confirmationMessage: {
+    backgroundColor: colors.successTint,
+    padding: responsiveSize.md,
+    borderRadius: borderRadius.small,
+    alignItems: 'center',
+    marginTop: responsiveSize.md,
+    marginBottom: responsiveSize.md,
   },
   confirmationText: {
-    ...typography.body,
-    color: colors.textPrimary,
+    fontSize: fontSize.body,
+    color: colors.success,
     fontWeight: '600',
   },
 });
