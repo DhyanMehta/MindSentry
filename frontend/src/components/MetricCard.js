@@ -27,8 +27,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.large,
     padding: cardDimensions.padding,
     marginBottom: responsiveSize.md,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: colors.primaryTint,
     ...shadows.small,
+    shadowColor: colors.shadow,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
   },
   title: {
     ...typography.small,
@@ -43,6 +48,8 @@ const styles = StyleSheet.create({
   value: {
     ...typography.h1,
     color: colors.primary,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   subtitle: {
     ...typography.small,
@@ -52,16 +59,20 @@ const styles = StyleSheet.create({
   trendBadge: {
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 8,
+    borderRadius: 12,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   trendUp: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: colors.successTint,
   },
   trendDown: {
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    backgroundColor: 'rgba(239,68,68,0.08)',
   },
   trendText: {
     ...typography.small,
     color: colors.textPrimary,
+    fontWeight: '700',
   },
 });

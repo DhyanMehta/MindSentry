@@ -9,7 +9,7 @@ import { typography } from '../theme/typography';
 import { MetricCard } from '../components/MetricCard';
 import { EmotionBadge } from '../components/EmotionBadge';
 import { SectionHeader } from '../components/SectionHeader';
-import { ResponsiveGrid, ResponsiveContainer } from '../components/ResponsiveComponents';
+// Responsive layout handled locally in this screen for precise spacing
 import { mockDashboard, mockInsights, mockMoodTrend, mockStressTrend, mockSleepTrend } from '../data/mockData';
 import { AuthContext } from '../context/AuthContext';
 import { responsiveSize, fontSize, SCREEN_WIDTH, isTablet } from '../utils/responsive';
@@ -17,20 +17,25 @@ import { responsiveSize, fontSize, SCREEN_WIDTH, isTablet } from '../utils/respo
 const screenWidth = SCREEN_WIDTH;
 
 const chartConfig = {
-  backgroundColor: colors.surface,
-  backgroundGradientFrom: colors.surface,
-  backgroundGradientTo: colors.surface,
+  backgroundColor: colors.card,
+  backgroundGradientFrom: colors.card,
+  backgroundGradientTo: colors.card,
   decimalPlaces: 0,
-  color: (opacity = 1) => `rgba(108, 92, 231, ${opacity})`, // Primary color
-  labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.7})`,
+  color: (opacity = 1) => `rgba(109, 40, 217, ${opacity})`, // primary (matches colors.primary)
+  labelColor: (opacity = 1) => `rgba(71, 85, 105, ${opacity * 0.9})`,
   style: {
     borderRadius: 16,
   },
   propsForDots: {
-    r: '4',
+    r: '5',
     strokeWidth: '2',
-    stroke: colors.primary,
+    stroke: colors.card,
   },
+  propsForBackgroundLines: {
+    stroke: colors.divider,
+  },
+  fillShadowGradient: colors.primary,
+  fillShadowGradientOpacity: 0.06,
 };
 
 export const DashboardScreen = () => {
@@ -65,6 +70,17 @@ export const DashboardScreen = () => {
         </Pressable>
       </View>
 
+      <Animated.View entering={SlideInDown.duration(400).delay(200)} style={styles.actionRow}>
+        <Pressable style={[styles.actionButton, styles.primaryAction]} onPress={() => navigation.navigate('CheckInScreen')}>
+          <Ionicons name="checkmark-done-outline" size={18} color={colors.card} />
+          <Text style={[styles.actionLabel, styles.primaryActionLabel]}>Start Check-in</Text>
+        </Pressable>
+        <Pressable style={[styles.actionButton, styles.secondaryAction]} onPress={() => navigation.navigate('InsightsScreen')}>
+          <Ionicons name="bulb-outline" size={18} color={colors.primary} />
+          <Text style={[styles.actionLabel, styles.secondaryActionLabel]}>Insights</Text>
+        </Pressable>
+      </Animated.View>
+
       <Animated.View entering={SlideInDown.duration(800).delay(300)} style={styles.card}>
         <Text style={styles.cardLabel}>Mental Wellness Score</Text>
         <Text style={styles.score}>{mockDashboard.wellnessScore}</Text>
@@ -74,67 +90,93 @@ export const DashboardScreen = () => {
 
       <Animated.View entering={SlideInDown.duration(800).delay(500)}>
         <SectionHeader title="Today" />
-        <MetricCard title="Stress index" value={mockDashboard.stressLevel} subtitle="Based on micro tremors + text sentiment" />
-        <MetricCard
-          title="Sleep quality"
-          value={`${mockDashboard.sleepQuality}%`}
-          subtitle="Estimated from wearable-ready signals"
-          trend={{ type: 'up', value: '+12%' }}
-        />
-        <MetricCard title="Focus level" value={`${mockDashboard.focus}%`} subtitle="Voice pace + blink rate + keystroke rhythm" />
-        <MetricCard title="Streak" value={`${mockDashboard.streak} days`} subtitle="Consecutive check-ins completed" />
+        <View style={styles.metricsGrid}>
+          <View style={styles.metricWrapper}><MetricCard title="Stress index" value={mockDashboard.stressLevel} subtitle="Based on micro tremors + text sentiment" /></View>
+          <View style={styles.metricWrapper}><MetricCard title="Sleep quality" value={`${mockDashboard.sleepQuality}%`} subtitle="Estimated from wearable-ready signals" trend={{ type: 'up', value: '+12%' }} /></View>
+          <View style={styles.metricWrapper}><MetricCard title="Focus level" value={`${mockDashboard.focus}%`} subtitle="Voice pace + blink rate + keystroke rhythm" /></View>
+          <View style={styles.metricWrapper}><MetricCard title="Streak" value={`${mockDashboard.streak} days`} subtitle="Consecutive check-ins completed" /></View>
+        </View>
+      </Animated.View>
+      <Animated.View entering={SlideInDown.duration(800).delay(600)} style={styles.captureButtonContainer}>
+        <Pressable onPress={() => navigation.navigate('CaptureScreen')} style={styles.capturePromptCard}>
+          <View style={styles.captureIconContainer}>
+            <Ionicons name="mic" size={28} color={colors.vibrantPink} />
+            <Ionicons name="camera" size={28} color={colors.accent} style={{ marginLeft: 8 }} />
+          </View>
+          <View style={styles.captureTextContainer}>
+            <Text style={styles.captureTitle}>Enhance Your Wellness Analysis</Text>
+            <Text style={styles.captureSubtitle}>Add voice and facial data for deeper AI insights</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color={colors.card} />
+        </Pressable>
       </Animated.View>
 
       <Animated.View entering={SlideInDown.duration(800).delay(700)} style={styles.chartSection}>
         <SectionHeader title="Mood Trend" />
-        <LineChart
-          data={mockMoodTrend}
-          width={screenWidth - 36}
-          height={220}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-        />
+        <View style={styles.chartContainer}>
+          <LineChart
+            data={mockMoodTrend}
+            width={screenWidth - (responsiveSize.base * 2) - (responsiveSize.md * 2)}
+            height={220}
+            chartConfig={{
+              ...chartConfig,
+              color: (opacity = 1) => `rgba(109,40,217, ${opacity})`,
+              fillShadowGradient: colors.primary,
+              fillShadowGradientOpacity: 0.06,
+              labelColor: (opacity = 1) => `rgba(71,85,105, ${opacity})`,
+            }}
+            bezier
+            style={[styles.chart, { paddingTop: responsiveSize.sm, paddingRight: responsiveSize.md }]}
+          />
+        </View>
       </Animated.View>
 
       <Animated.View entering={SlideInDown.duration(800).delay(900)} style={styles.chartSection}>
         <SectionHeader title="Stress Levels" />
-        <LineChart
-          data={mockStressTrend}
-          width={screenWidth - 36}
-          height={220}
-          chartConfig={{
-            ...chartConfig,
-            color: (opacity = 1) => `rgba(255, 107, 107, ${opacity})`,
-            propsForDots: {
-              r: '4',
-              strokeWidth: '2',
-              stroke: colors.danger,
-            },
-          }}
-          bezier
-          style={styles.chart}
-        />
+        <View style={styles.chartContainer}>
+          <LineChart
+            data={mockStressTrend}
+            width={screenWidth - (responsiveSize.base * 2) - (responsiveSize.md * 2)}
+            height={220}
+            chartConfig={{
+              ...chartConfig,
+              color: (opacity = 1) => `rgba(239,68,68, ${opacity})`,
+              fillShadowGradient: colors.danger,
+              fillShadowGradientOpacity: 0.055,
+              propsForDots: {
+                r: '5',
+                strokeWidth: '2',
+                stroke: colors.card,
+              },
+            }}
+            bezier
+            style={[styles.chart, { paddingTop: responsiveSize.sm, paddingRight: responsiveSize.md }]}
+          />
+        </View>
       </Animated.View>
 
       <Animated.View entering={SlideInDown.duration(800).delay(1100)} style={styles.chartSection}>
         <SectionHeader title="Sleep Patterns" />
-        <LineChart
-          data={mockSleepTrend}
-          width={screenWidth - 36}
-          height={220}
-          chartConfig={{
-            ...chartConfig,
-            color: (opacity = 1) => `rgba(0, 204, 201, ${opacity})`,
-            propsForDots: {
-              r: '4',
-              strokeWidth: '2',
-              stroke: colors.secondary,
-            },
-          }}
-          bezier
-          style={styles.chart}
-        />
+        <View style={styles.chartContainer}>
+          <LineChart
+            data={mockSleepTrend}
+            width={screenWidth - (responsiveSize.base * 2) - (responsiveSize.md * 2)}
+            height={220}
+            chartConfig={{
+              ...chartConfig,
+              color: (opacity = 1) => `rgba(6,182,212, ${opacity})`,
+              fillShadowGradient: colors.accent,
+              fillShadowGradientOpacity: 0.055,
+              propsForDots: {
+                r: '5',
+                strokeWidth: '2',
+                stroke: colors.card,
+              },
+            }}
+            bezier
+            style={[styles.chart, { paddingTop: responsiveSize.sm, paddingRight: responsiveSize.md }]}
+          />
+        </View>
       </Animated.View>
 
       <Animated.View entering={SlideInDown.duration(800).delay(1300)}>
@@ -147,22 +189,7 @@ export const DashboardScreen = () => {
         ))}
       </Animated.View>
 
-      <Animated.View entering={SlideInDown.duration(800).delay(1500)} style={styles.captureButtonContainer}>
-        <Pressable
-          onPress={() => navigation.navigate('CaptureScreen')}
-          style={styles.capturePromptCard}
-        >
-          <View style={styles.captureIconContainer}>
-            <Ionicons name="mic" size={28} color={colors.secondary} />
-            <Ionicons name="camera" size={28} color={colors.accent} style={{ marginLeft: 8 }} />
-          </View>
-          <View style={styles.captureTextContainer}>
-            <Text style={styles.captureTitle}>Enhance Your Wellness Analysis</Text>
-            <Text style={styles.captureSubtitle}>Add voice and facial data for deeper AI insights</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={24} color={colors.primary} />
-        </Pressable>
-      </Animated.View>
+      
     </ScrollView>
   );
 };
@@ -244,6 +271,15 @@ const styles = StyleSheet.create({
   chartSection: {
     marginBottom: responsiveSize.lg,
   },
+  chartContainer: {
+    alignSelf: 'center',
+    paddingTop: responsiveSize.sm,
+    paddingRight: responsiveSize.sm,
+    width: '100%',
+    // allow chart inner padding while keeping container rounded
+    paddingLeft: 6,
+    paddingBottom: 2,
+  },
   chart: {
     marginVertical: responsiveSize.md,
     borderRadius: 18,
@@ -283,22 +319,22 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSize.xxl,
   },
   capturePromptCard: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.gradientMid || colors.primary,
     borderWidth: 0,
     borderRadius: 18,
     padding: responsiveSize.base,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 8,
   },
   captureIconContainer: {
     flexDirection: 'row',
     marginRight: responsiveSize.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
     borderRadius: 14,
     padding: responsiveSize.sm,
   },
@@ -316,5 +352,58 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: 'rgba(255, 255, 255, 0.92)',
     fontSize: fontSize.small,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: responsiveSize.md,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    paddingVertical: responsiveSize.sm,
+    paddingHorizontal: responsiveSize.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.secondaryTint,
+    marginRight: responsiveSize.sm,
+    shadowColor: colors.shadow || '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  primaryAction: {
+    backgroundColor: colors.primary,
+    borderColor: 'transparent',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.18,
+  },
+  primaryActionLabel: {
+    color: colors.card,
+  },
+  actionLabel: {
+    ...typography.body,
+    color: colors.textPrimary,
+    marginLeft: responsiveSize.xs,
+    fontWeight: '700',
+  },
+  secondaryAction: {
+    backgroundColor: 'transparent',
+    borderColor: colors.primaryTint,
+  },
+  secondaryActionLabel: {
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  metricWrapper: {
+    width: '48%',
+    marginBottom: responsiveSize.md,
   },
 });
