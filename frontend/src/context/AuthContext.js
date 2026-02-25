@@ -114,14 +114,14 @@ export const AuthProvider = ({ children }) => {
     error: state.error,
 
     /**
-     * Sign up with email, password, and name
+     * Sign up with email, password, and confirmPassword
      */
-    signup: useCallback(async (email, password, name) => {
+    signup: useCallback(async (email, password, confirmPassword) => {
       try {
         dispatch({ type: 'SET_LOADING', payload: true });
         dispatch({ type: 'CLEAR_ERROR' });
 
-        const result = await AuthService.signup(email, password, name);
+        const result = await AuthService.signup(email, password, confirmPassword);
         
         dispatch({
           type: 'SIGN_IN',
@@ -178,23 +178,6 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMessage };
       } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
-      }
-    }, []),
-
-    /**
-     * Refresh access token
-     */
-    refreshToken: useCallback(async () => {
-      try {
-        const result = await AuthService.refreshAccessToken();
-        dispatch({
-          type: 'REFRESH_TOKEN',
-          payload: { userToken: result.accessToken },
-        });
-        return { success: true };
-      } catch (error) {
-        dispatch({ type: 'SIGN_OUT' });
-        return { success: false, error: error.message };
       }
     }, []),
 

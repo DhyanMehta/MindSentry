@@ -1,13 +1,14 @@
 import { AuthService } from './authService';
+import { API_CONFIG } from '../config/api.config';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = API_CONFIG.BASE_URL;
 
 /**
- * Makes an authenticated API request with automatic token refresh
+ * Makes an authenticated API request
  * @private
  */
 const makeRequest = async (endpoint, options = {}) => {
-  let accessToken = await AuthService.getAccessToken();
+  const accessToken = await AuthService.getAccessToken();
 
   const headers = {
     'Content-Type': 'application/json',
@@ -19,30 +20,16 @@ const makeRequest = async (endpoint, options = {}) => {
   }
 
   try {
-    let response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     });
 
-    // If token expired (401), try refreshing
+    // Handle unauthorized (401) - clear auth and force re-login
     if (response.status === 401 && accessToken) {
-      try {
-        const refreshResult = await AuthService.refreshAccessToken();
-        if (refreshResult.accessToken) {
-          accessToken = refreshResult.accessToken;
-          headers['Authorization'] = `Bearer ${accessToken}`;
-          
-          // Retry the original request with new token
-          response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            ...options,
-            headers,
-          });
-        }
-      } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
-        // Token refresh failed, user needs to re-login
-        throw new Error('Session expired. Please log in again.');
-      }
+      console.log('Token expired, clearing auth...');
+      await AuthService.logout();
+      throw new Error('Session expired. Please log in again.');
     }
 
     // Handle non-2xx responses
