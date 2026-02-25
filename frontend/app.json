@@ -28,7 +28,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiUrl": null
+      "apiUrl": "http://10.33.202.90:8000"
     }
   }
 }
