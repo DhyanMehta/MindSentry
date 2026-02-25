@@ -1,22 +1,27 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
-import { responsiveSize, cardDimensions, borderRadius, shadows } from '../utils/responsive';
+import { responsiveSize, fontSize } from '../utils/responsive';
 
 export const MetricCard = ({ title, value, subtitle, trend }) => {
+  const trendIcon = trend ? (trend.type === 'up' ? 'arrow-up' : 'arrow-down') : null;
+  const trendColor = trend ? (trend.type === 'up' ? colors.success : colors.danger) : null;
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
-      <View style={styles.row}>
-        <Text style={styles.value}>{value}</Text>
-        {trend ? (
-          <View style={[styles.trendBadge, trend.type === 'up' ? styles.trendUp : styles.trendDown]}>
-            <Text style={styles.trendText}>{trend.value}</Text>
+      <Text style={styles.value}>{value}</Text>
+      <View style={styles.footer}>
+        <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+        {trend && (
+          <View style={styles.trendContainer}>
+            <Ionicons name={trendIcon} size={responsiveSize.sm} color={trendColor} />
+            <Text style={[styles.trendText, { color: trendColor }]}>{trend.value}</Text>
           </View>
-        ) : null}
+        )}
       </View>
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
   );
 };
@@ -24,55 +29,41 @@ export const MetricCard = ({ title, value, subtitle, trend }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.card,
-    borderRadius: borderRadius.large,
-    padding: cardDimensions.padding,
-    marginBottom: responsiveSize.md,
+    borderRadius: 20,
+    padding: responsiveSize.base,
     borderWidth: 1,
-    borderColor: colors.primaryTint,
-    ...shadows.small,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
+    borderColor: colors.divider,
+    justifyContent: 'space-between',
   },
   title: {
     ...typography.small,
     color: colors.textSecondary,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
+    fontWeight: '600',
+    marginBottom: responsiveSize.sm,
   },
   value: {
-    ...typography.h1,
-    color: colors.primary,
+    ...typography.h2,
+    color: colors.textPrimary,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    marginBottom: responsiveSize.sm,
+  },
+  footer: {
+    
   },
   subtitle: {
-    ...typography.small,
-    color: colors.textSecondary,
-    marginTop: 6,
+    ...typography.tiny,
+    color: colors.textMuted,
+    fontSize: fontSize.tiny * 0.9,
+    lineHeight: fontSize.tiny * 1.4,
   },
-  trendBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    minWidth: 44,
+  trendContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trendUp: {
-    backgroundColor: colors.successTint,
-  },
-  trendDown: {
-    backgroundColor: 'rgba(239,68,68,0.08)',
+    marginTop: responsiveSize.xs,
   },
   trendText: {
     ...typography.small,
-    color: colors.textPrimary,
     fontWeight: '700',
+    marginLeft: responsiveSize.xs / 2,
   },
 });
