@@ -31,12 +31,21 @@ const getApiUrl = () => {
   // 3. Auto-detect for development
   if (__DEV__) {
     // For Expo Go on physical device, use the debugger host IP
-    if (Constants.manifest?.debuggerHost) {
-      const debuggerHost = Constants.manifest.debuggerHost.split(':')[0];
-      return `http://${debuggerHost}:8000`;
+    // Try multiple manifest APIs (newer SDK versions use expoConfig)
+    const debuggerHost = 
+      Constants.expoConfig?.hostUri?.split(':')[0] ||
+      Constants.manifest?.debuggerHost?.split(':')[0] ||
+      Constants.manifest2?.extra?.expoGo?.debuggerHost?.split(':')[0];
+    
+    if (debuggerHost) {
+      // If we have a debugger host, we're likely in Expo Go on a physical device
+      // Check if it's not localhost (which would indicate simulator)
+      if (debuggerHost !== 'localhost' && debuggerHost !== '127.0.0.1') {
+        return `http://${debuggerHost}:8000`;
+      }
     }
 
-    // For Android Emulator
+    // For Android Emulator (only if no debugger host found)
     if (Platform.OS === 'android') {
       return 'http://10.0.2.2:8000';
     }
@@ -59,7 +68,14 @@ export const API_CONFIG = {
 if (__DEV__) {
   console.log('🔗 API Base URL:', API_CONFIG.BASE_URL);
   console.log('📱 Platform:', Platform.OS);
-  if (Constants.manifest?.debuggerHost) {
-    console.log('🔍 Debugger Host:', Constants.manifest.debuggerHost);
+  
+  const debuggerHost = 
+    Constants.expoConfig?.hostUri ||
+    Constants.manifest?.debuggerHost ||
+    Constants.manifest2?.extra?.expoGo?.debuggerHost;
+  
+  if (debuggerHost) {
+    console.log('🔍 Debugger Host:', debuggerHost);
   }
+  console.log('📦 App Ownership:', Constants.appOwnership);
 }
