@@ -58,7 +58,7 @@ export const SignupScreen = () => {
   const handleSignup = async () => {
     if (!validateInputs()) return;
     
-    const result = await signup(email, password, name);
+    const result = await signup(email, password, confirmPassword);
     
     if (result.success) {
       // Navigation is handled by AppNavigator based on auth state
