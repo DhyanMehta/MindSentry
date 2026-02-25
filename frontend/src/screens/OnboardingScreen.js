@@ -1,23 +1,40 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, Image, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated, { 
+  FadeIn, 
+  SlideInDown, 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat, 
+  withTiming, 
+  Easing 
+} from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
-import { typography } from '../theme/typography';
-import {
-  responsiveSize,
-  imageDimensions,
-  borderRadius,
-  cardDimensions,
-  shadows,
-  isTablet,
-  fontSize,
-} from '../utils/responsive';
+import { responsiveSize, fontSize, borderRadius } from '../utils/responsive';
 
-const Logo = require('../../assets/logo.jpg'); // Assuming logo.jpg is directly under assets/
+const Logo = require('../../assets/logo.jpg');
+const { width } = Dimensions.get('window');
 
 export const OnboardingScreen = () => {
   const navigation = useNavigation();
+  
+  // Floating animation for the logo
+  const translateY = useSharedValue(0);
+
+  useEffect(() => {
+    translateY.value = withRepeat(
+      withTiming(-10, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedLogoStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   const handleGetStarted = () => {
     navigation.replace('Login');
@@ -25,28 +42,74 @@ export const OnboardingScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.decorativeBackground} />
-      <Animated.View entering={FadeIn.duration(800).delay(150)} style={styles.card}>
-        <Animated.Image
-          entering={FadeIn.duration(1000).delay(200)}
-          source={Logo}
-          style={styles.logo}
-        />
-        <Animated.Text entering={SlideInDown.duration(800).delay(300)} style={styles.title}>
-          Welcome to MindSentry
-        </Animated.Text>
-        <Animated.Text entering={SlideInDown.duration(800).delay(450)} style={styles.description}>
-          Your AI-powered multi-modal mental well-being monitor.
-          Understand your emotional states, stress levels, and behavioral patterns
-          through text, voice, and facial expression analysis.
-        </Animated.Text>
+      {/* 1. Modern Background Decorations */}
+      <View style={styles.backgroundContainer}>
+        <View style={[styles.blob, styles.blobTop]} />
+        <View style={[styles.blob, styles.blobBottom]} />
+      </View>
 
-        <Animated.View entering={SlideInDown.duration(800).delay(650)} style={styles.buttonContainer}>
-          <Pressable onPress={handleGetStarted} style={styles.button}>
-            <Text style={styles.buttonText}>Get Started</Text>
-          </Pressable>
+      {/* 2. Main Content */}
+      <View style={styles.contentContainer}>
+        
+        {/* Logo Section */}
+        <Animated.View 
+            entering={FadeIn.duration(1000)} 
+            style={[styles.logoContainer, animatedLogoStyle]}
+        >
+          <View style={styles.logoWrapper}>
+            <Image source={Logo} style={styles.logo} />
+          </View>
+          {/* subtle shadow ring */}
+          <View style={styles.logoShadow} />
         </Animated.View>
-      </Animated.View>
+
+        {/* Text Section */}
+        <View style={styles.textContainer}>
+            <Animated.Text 
+                entering={SlideInDown.duration(800).delay(200)} 
+                style={styles.title}
+            >
+                Welcome to{"\n"}
+                <Text style={styles.brandName}>MindSentry</Text>
+            </Animated.Text>
+            
+            <Animated.Text 
+                entering={SlideInDown.duration(800).delay(400)} 
+                style={styles.description}
+            >
+                Your AI-powered wellness companion. 
+                Track your emotional health through voice, facial expressions, and daily journaling.
+            </Animated.Text>
+        </View>
+
+        {/* Action Section */}
+        <Animated.View 
+            entering={SlideInDown.duration(800).delay(600)} 
+            style={styles.footerContainer}
+        >
+            <Pressable 
+                onPress={handleGetStarted} 
+                style={({ pressed }) => [
+                    styles.button, 
+                    pressed && styles.buttonPressed
+                ]}
+            >
+                <LinearGradient
+                    colors={[colors.primary, '#7C3AED']} // Purple to deep violet
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.gradientButton}
+                >
+                    <Text style={styles.buttonText}>Get Started</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#fff" />
+                </LinearGradient>
+            </Pressable>
+
+            <Text style={styles.loginLink} onPress={() => navigation.replace('Login')}>
+                Already have an account? <Text style={styles.loginLinkBold}>Log in</Text>
+            </Text>
+        </Animated.View>
+      </View>
     </View>
   );
 };
@@ -54,76 +117,146 @@ export const OnboardingScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F8FAFC', // Clean off-white
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 40,
   },
-  decorativeBackground: {
+  
+  // --- Background Decoration ---
+  backgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  blob: {
     position: 'absolute',
-    top: -80,
-    right: -80,
-    width: 260,
-    height: 260,
-    borderRadius: 260,
-    backgroundColor: colors.primaryTint,
-    opacity: 0.9,
+    width: width * 1.2,
+    height: width * 1.2,
+    borderRadius: width * 0.6,
+    opacity: 0.08,
   },
-  card: {
+  blobTop: {
+    top: -width * 0.6,
+    left: -width * 0.2,
+    backgroundColor: colors.primary,
+  },
+  blobBottom: {
+    bottom: -width * 0.5,
+    right: -width * 0.3,
+    backgroundColor: colors.secondary,
+  },
+
+  // --- Layout ---
+  contentContainer: {
+    flex: 1,
     width: '100%',
-    maxWidth: isTablet() ? 640 : 420,
-    backgroundColor: colors.card,
-    padding: cardDimensions.padding,
-    borderRadius: borderRadius.extraLarge,
+    paddingHorizontal: 24,
+    justifyContent: 'space-between',
+    paddingVertical: responsiveSize.xxl,
+  },
+
+  // --- Logo ---
+  logoContainer: {
+    flex: 2,
+    justifyContent: 'center',
     alignItems: 'center',
-    ...shadows.large,
+    marginTop: responsiveSize.xl,
+  },
+  logoWrapper: {
+    width: 140,
+    height: 140,
+    borderRadius: 35, // Modern squircle look
+    backgroundColor: '#fff',
+    padding: 20,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    zIndex: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logo: {
-    width: imageDimensions.avatarLarge,
-    height: imageDimensions.avatarLarge,
-    resizeMode: 'contain',
-    marginBottom: responsiveSize.xl,
-  },
-  title: {
-    ...typography.h1,
-    fontSize: 32,
-    color: colors.textPrimary,
-    marginBottom: responsiveSize.md,
-    textAlign: 'center',
-    fontWeight: '800',
-  },
-  description: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: responsiveSize.lg,
-    lineHeight: 24,
-    maxWidth: '92%',
-    fontSize: fontSize.body,
-  },
-  buttonContainer: {
-    marginTop: responsiveSize.md,
     width: '100%',
-    alignItems: 'center',
+    height: '100%',
+    resizeMode: 'contain',
   },
-  button: {
+  logoShadow: {
+    position: 'absolute',
+    bottom: -20,
+    width: 100,
+    height: 20,
+    borderRadius: 50,
     backgroundColor: colors.primary,
-    paddingVertical: responsiveSize.md,
-    paddingHorizontal: responsiveSize.xl,
-    borderRadius: borderRadius.large,
+    opacity: 0.1,
+    transform: [{ scaleX: 1.5 }],
+  },
+
+  // --- Text ---
+  textContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  title: {
+    fontSize: 32,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    fontWeight: '600',
+    lineHeight: 42,
+    marginBottom: 16,
+  },
+  brandName: {
+    fontWeight: '900',
+    color: colors.primary,
+  },
+  description: {
+    fontSize: fontSize.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: 10,
+  },
+
+  // --- Footer / Buttons ---
+  footerContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: responsiveSize.lg,
+  },
+  button: {
+    width: '100%',
+    borderRadius: 16,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
     elevation: 8,
+    marginBottom: 20,
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
+  },
+  gradientButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    borderRadius: 16,
+    gap: 12,
   },
   buttonText: {
-    ...typography.body,
+    fontSize: 18,
     color: '#fff',
     fontWeight: '700',
-    fontSize: fontSize.body,
+  },
+  loginLink: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  loginLinkBold: {
+    color: colors.primary,
+    fontWeight: '700',
   },
 });

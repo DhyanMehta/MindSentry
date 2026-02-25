@@ -1,287 +1,303 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TextInput, 
+  Pressable, 
+  FlatList, 
+  KeyboardAvoidingView, 
+  Platform, 
+  ActivityIndicator 
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
-import { typography } from '../theme/typography';
 
-// AI Response samples for better conversation
-const aiResponses = [
-  "Thank you for sharing. Remember, I'm here to listen and provide support.",
-  "That sounds challenging. How are you coping with these feelings?",
-  "It's important to acknowledge what you're going through. What would help you feel better right now?",
-  "I appreciate your openness. Remember to be kind to yourself.",
-  "Your feelings are valid. Would you like to talk more about what's on your mind?",
-  "Thank you for trusting me with this. You're doing great by seeking support.",
-  "That takes courage to share. What's one thing that could improve your day?",
-  "I'm here for you. Let's work through this together.",
+// Initial mock messages
+const INITIAL_MESSAGES = [
+  {
+    id: '1',
+    text: "Hello! I'm your AI Counselor. I'm here to listen and help you navigate your feelings. How are you feeling today?",
+    sender: 'system',
+    timestamp: new Date().toISOString(),
+  },
 ];
 
 export const CounselorChatScreen = () => {
   const navigation = useNavigation();
-  const [messages, setMessages] = useState([
-    { id: '1', text: 'Hello there! How are you feeling today? I\'m here to listen and support you.', sender: 'ai', timestamp: new Date() },
-  ]);
+  const insets = useSafeAreaInsets();
+  const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const flatListRef = useRef(null);
 
-  const handleSendMessage = () => {
-    if (inputText.trim() === '') return;
+  const handleSend = () => {
+    if (!inputText.trim()) return;
 
-    // Add user message
-    const userMessage = { 
-      id: Date.now().toString(), 
-      text: inputText.trim(), 
+    const userMsg = {
+      id: Date.now().toString(),
+      text: inputText.trim(),
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date().toISOString(),
     };
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
-    setInputText('');
 
-    // Show typing indicator
+    setMessages((prev) => [...prev, userMsg]);
+    setInputText('');
     setIsTyping(true);
 
-    // Simulate AI response after a delay
+    // Simulate AI response delay
     setTimeout(() => {
-      const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
-      const aiResponse = { 
-        id: (Date.now() + 1).toString(), 
-        text: randomResponse, 
-        sender: 'ai',
-        timestamp: new Date()
+      const aiMsg = {
+        id: (Date.now() + 1).toString(),
+        text: "I hear you. It sounds like you're carrying a lot on your shoulders. Can you tell me more about what's causing that feeling?",
+        sender: 'system',
+        timestamp: new Date().toISOString(),
       };
-      setMessages((prevMessages) => [...prevMessages, aiResponse]);
+      setMessages((prev) => [...prev, aiMsg]);
       setIsTyping(false);
-    }, 1200 + Math.random() * 800);
+    }, 2000);
   };
 
-  const renderMessage = ({ item }) => (
-    <Animated.View
-      entering={FadeIn.duration(300)}
-      style={[
-        styles.messageBubble,
-        item.sender === 'user' ? styles.userBubble : styles.aiBubble,
-      ]}
-    >
-      <Text style={item.sender === 'user' ? styles.userText : styles.aiText}>
-        {item.text}
-      </Text>
-    </Animated.View>
-  );
+  useEffect(() => {
+    // Scroll to bottom when messages change
+    setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  }, [messages, isTyping]);
 
-  const renderTypingIndicator = () => (
-    <View style={[styles.messageBubble, styles.aiBubble]}>
-      <View style={styles.typingIndicator}>
-        <View style={[styles.typingDot, styles.typingDot1]} />
-        <View style={[styles.typingDot, styles.typingDot2]} />
-        <View style={[styles.typingDot, styles.typingDot3]} />
-      </View>
-    </View>
-  );
+  const renderMessage = ({ item }) => {
+    const isUser = item.sender === 'user';
+    return (
+      <Animated.View 
+        entering={FadeIn.duration(400)} 
+        style={[
+          styles.messageBubble,
+          isUser ? styles.userBubble : styles.systemBubble
+        ]}
+      >
+        {!isUser && (
+            <View style={styles.botIcon}>
+                <Ionicons name="chatbubbles" size={14} color="#fff" />
+            </View>
+        )}
+        <Text style={[styles.messageText, isUser ? styles.userText : styles.systemText]}>
+          {item.text}
+        </Text>
+      </Animated.View>
+    );
+  };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>AI Counselor</Text>
-          <Text style={styles.headerSubtitle}>Always available to listen</Text>
+        <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>AI Counselor</Text>
+            <View style={styles.statusRow}>
+                <View style={styles.onlineDot} />
+                <Text style={styles.statusText}>Online</Text>
+            </View>
         </View>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 40 }} /> 
       </View>
 
+      {/* Chat Area */}
       <FlatList
         ref={flatListRef}
         data={messages}
-        renderItem={renderMessage}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesContainer}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        scrollEnabled={true}
+        renderItem={renderMessage}
+        contentContainerStyle={styles.chatContent}
+        showsVerticalScrollIndicator={false}
+        ListFooterComponent={
+            isTyping && (
+                <View style={styles.typingContainer}>
+                    <View style={styles.botIcon}>
+                        <Ionicons name="chatbubbles" size={14} color="#fff" />
+                    </View>
+                    <View style={styles.typingBubble}>
+                        <ActivityIndicator size="small" color={colors.textSecondary} />
+                    </View>
+                </View>
+            )
+        }
       />
 
-      {isTyping && renderTypingIndicator()}
-
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.textInput}
-          placeholder="Type your message..."
-          placeholderTextColor={colors.textSecondary}
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
-          maxLength={500}
-        />
-        <Pressable 
-          onPress={handleSendMessage} 
-          style={[styles.sendButton, inputText.trim() === '' && styles.sendButtonDisabled]}
-          disabled={inputText.trim() === '' || isTyping}
-        >
-          <Ionicons name="send" size={24} color={inputText.trim() === '' ? colors.textSecondary : '#FFFFFF'} />
-        </Pressable>
-      </View>
-    </KeyboardAvoidingView>
+      {/* Input Area */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+      >
+        <View style={[styles.inputContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }]}>
+          <TextInput
+            style={styles.input}
+            placeholder="Type your message..."
+            placeholderTextColor={colors.textSecondary}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={500}
+          />
+          <Pressable 
+            onPress={handleSend} 
+            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+            disabled={!inputText.trim()}
+          >
+            <Ionicons name="send" size={20} color="#fff" />
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.primary,
-    paddingTop: Platform.OS === 'android' ? 40 : 14,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 5,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    backgroundColor: '#fff',
   },
   backButton: {
     padding: 8,
-    borderRadius: 10,
+    marginLeft: -8,
   },
-  headerContent: {
-    flex: 1,
+  headerTitleContainer: {
     alignItems: 'center',
   },
   headerTitle: {
-    ...typography.h2,
-    color: '#FFFFFF',
-    fontSize: 19,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
-  headerSubtitle: {
-    ...typography.small,
-    color: 'rgba(255, 255, 255, 0.8)',
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.success,
+    marginRight: 4,
+  },
+  statusText: {
     fontSize: 12,
-    marginTop: 4,
-    fontWeight: '600',
+    color: colors.textSecondary,
   },
-  messagesContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 16,
-    justifyContent: 'flex-end',
+  
+  // Chat List
+  chatContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    gap: 16,
+    paddingBottom: 40,
   },
   messageBubble: {
-    maxWidth: '85%',
+    maxWidth: '80%',
     padding: 16,
-    borderRadius: 22,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 20,
+    marginBottom: 4,
   },
   userBubble: {
     alignSelf: 'flex-end',
     backgroundColor: colors.primary,
-    borderBottomRightRadius: 6,
-    marginRight: 4,
+    borderBottomRightRadius: 4,
   },
-  aiBubble: {
+  systemBubble: {
     alignSelf: 'flex-start',
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginLeft: 36, // Space for avatar
+  },
+  botIcon: {
+    position: 'absolute',
+    left: -36,
+    bottom: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.secondary,
-    borderBottomLeftRadius: 6,
-    marginLeft: 4,
-  },
-  userText: {
-    ...typography.body,
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 21,
-  },
-  aiText: {
-    ...typography.body,
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 21,
-  },
-  typingIndicator: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
   },
-  typingDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+  messageText: {
+    fontSize: 15,
+    lineHeight: 22,
   },
-  typingDot1: {
-    opacity: 1,
+  userText: {
+    color: '#fff',
   },
-  typingDot2: {
-    opacity: 0.6,
+  systemText: {
+    color: colors.textPrimary,
   },
-  typingDot3: {
-    opacity: 0.3,
+  
+  // Typing Indicator
+  typingContainer: {
+    marginLeft: 36,
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
+  typingBubble: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+
+  // Input
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 14,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 2,
-    borderTopColor: colors.primaryTint,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
   },
-  textInput: {
+  input: {
     flex: 1,
-    maxHeight: 100,
-    minHeight: 48,
-    backgroundColor: colors.card,
-    borderRadius: 26,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 24,
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 12, // For multiline centering
+    minHeight: 48,
+    maxHeight: 120,
+    fontSize: 16,
     color: colors.textPrimary,
-    ...typography.body,
-    fontSize: 15,
-    borderWidth: 2,
-    borderColor: colors.primaryTint,
-    fontWeight: '500',
+    marginRight: 12,
   },
   sendButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.primary,
-    borderRadius: 26,
-    width: 52,
-    height: 52,
-    justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    justifyContent: 'center',
+    marginBottom: 1, // Align with input bottom
   },
   sendButtonDisabled: {
-    backgroundColor: colors.primaryTint,
-    opacity: 0.6,
+    backgroundColor: '#CBD5E1',
   },
 });
