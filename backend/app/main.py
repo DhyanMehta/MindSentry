@@ -5,9 +5,24 @@ Main application entry point
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+
 from app.core.config import get_settings
 from app.core.database import create_db_and_tables
+
+# ── Import all models so their metadata is registered before create_all ──
+import app.models  # noqa: F401 – side-effect import registers all tables
+
+# ── Auth router (untouched) ───────────────────────────────────────────────
 from app.api.auth import router as auth_router
+
+# ── New non-auth routers ──────────────────────────────────────────────────
+from app.api.assessments import router as assessments_router
+from app.api.text_analysis import router as text_router
+from app.api.audio_analysis import router as audio_router
+from app.api.video_analysis import router as video_router
+from app.api.questionnaires import router as questionnaires_router
+from app.api.analysis import router as analysis_router
+from app.api.history import router as history_router
 
 settings = get_settings()
 
@@ -15,31 +30,31 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
-    # Startup: Create database tables
+    # Startup: Create all database tables (auth + non-auth)
     create_db_and_tables()
     yield
-    # Shutdown: Cleanup if needed
+    # Shutdown: cleanup if needed
 
 
 # Create FastAPI application
 app = FastAPI(
     title=settings.app_name,
-    description="Production-ready backend API for MindSentry mental health application",
-    version="1.0.0",
-    lifespan=lifespan
+    description="MindSentry — multimodal mental-health analysis API",
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
-# Configure CORS for React Native and Web Development
+# Configure CORS for React Native / Expo
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost",
         "http://localhost:3000",
-        "http://localhost:8081",  # Expo default port
+        "http://localhost:8081",
         "http://127.0.0.1",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8081",
-        "*",  # Allow all origins for development
+        "*",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -47,17 +62,24 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Include routers
-app.include_router(auth_router)
+# ── Register routers ──────────────────────────────────────────────────────
+app.include_router(auth_router)           # /auth/*
+app.include_router(assessments_router)    # /assessments/*
+app.include_router(text_router)           # /text/*
+app.include_router(audio_router)          # /audio/*
+app.include_router(video_router)          # /video/*
+app.include_router(questionnaires_router) # /questionnaires/*
+app.include_router(analysis_router)       # /analysis/*
+app.include_router(history_router)        # /history/*
 
 
 @app.get("/")
 def root():
-    """Root endpoint - API health check"""
+    """Root endpoint — API health check"""
     return {
         "message": "MindSentry API is running",
         "status": "healthy",
-        "version": "1.0.0"
+        "version": "2.0.0",
     }
 
 

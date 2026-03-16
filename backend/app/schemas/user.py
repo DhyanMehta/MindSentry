@@ -1,63 +1,81 @@
 """
 Pydantic schemas for request/response validation
 """
-from datetime import datetime
+from datetime import datetime, date
+from typing import Optional
 from pydantic import BaseModel, EmailStr, field_validator
 
 
+# ─── User Schemas ─────────────────────────────────────────────
+
 class UserCreate(BaseModel):
     """Schema for user registration"""
+    name: str
     email: EmailStr
     password: str
     confirmPassword: str
-    
-    @field_validator('confirmPassword')
+    birthday: Optional[date] = None
+    gender: Optional[str] = None
+    timezone: Optional[str] = "UTC"
+
+    @field_validator("confirmPassword")
     @classmethod
     def passwords_match(cls, v, info):
-        """Validate that password and confirmPassword match"""
-        if 'password' in info.data and v != info.data['password']:
-            raise ValueError('Passwords do not match')
+        if "password" in info.data and v != info.data["password"]:
+            raise ValueError("Passwords do not match")
         return v
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Name cannot be empty")
+        return v.strip()
 
 
 class UserLogin(BaseModel):
-    """Schema for user login"""
     email: EmailStr
     password: str
 
 
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    birthday: Optional[date] = None
+    gender: Optional[str] = None
+    timezone: Optional[str] = None
+
+
 class UserResponse(BaseModel):
-    """Schema for user response data (minimal - no timestamps for frontend)"""
     id: int
     email: str
-    
+    name: str
+
     class Config:
         from_attributes = True
 
 
-class UserResponseWithTimestamp(BaseModel):
-    """Schema for user response data with timestamp"""
+class UserProfileResponse(BaseModel):
     id: int
     email: str
+    name: str
+    birthday: Optional[date] = None
+    gender: Optional[str] = None
+    timezone: str
+    is_active: bool
     created_at: datetime
-    
+    last_login: Optional[datetime] = None
+
     class Config:
         from_attributes = True
 
 
-class Token(BaseModel):
-    """Schema for JWT token response (legacy)"""
-    access_token: str
-    token_type: str = "bearer"
-
+# ─── Token Schemas ────────────────────────────────────────────
 
 class TokenResponse(BaseModel):
-    """Schema for authentication response matching frontend expectations"""
     user: UserResponse
     access_token: str
     token_type: str = "bearer"
 
 
 class TokenData(BaseModel):
-    """Schema for decoded token data"""
-    email: str | None = None
+    email: Optional[str] = None

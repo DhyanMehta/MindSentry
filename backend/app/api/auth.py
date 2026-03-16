@@ -3,126 +3,94 @@ Authentication API endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlmodel import Session
+from sqlmodel import Session as DBSession
 from app.core.database import get_session
 from app.core.security import create_access_token, verify_token
-from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse
-from app.services.auth_service import create_user, authenticate_user, get_user_by_email
+from app.schemas.user import (
+    UserCreate, UserLogin, UserUpdate,
+    UserResponse, UserProfileResponse, TokenResponse,
+)
+from app.services.auth_service import (
+    create_user, authenticate_user, get_user_by_email,
+    get_user_by_id, update_user, soft_delete_user,
+)
+from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 security = HTTPBearer()
 
 
-@router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def signup(
-    user_data: UserCreate,
-    session: Session = Depends(get_session)
-):
-    """
-    Register a new user
-    
-    - **email**: Valid email address
-    - **password**: User password (will be hashed)
-    - **confirmPassword**: Password confirmation (must match password)
-    """
-    # Check if user already exists
-    existing_user = get_user_by_email(session, user_data.email)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    # Create new user
+# ── Dependency: get current user from JWT ─────────────────────
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: DBSession = Depends(get_session),
+) -> User:
+    payload = verify_token(credentials.credentials)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    email: str = payload.get("sub")
+    if email is None:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    user = get_user_by_email(session, email)
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return user
+
+
+# ── Endpoints ─────────────────────────────────────────────────
+
+@router.post("/signup", response_model=TokenResponse, status_code=201)
+def signup(user_data: UserCreate, session: DBSession = Depends(get_session)):
+    existing = get_user_by_email(session, user_data.email)
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
     user = create_user(session, user_data)
-    
-    # Generate access token
-    access_token = create_access_token(data={"sub": user.email})
-    
-    # Return response matching frontend expectations
+    token = create_access_token(data={"sub": user.email})
+
     return TokenResponse(
-        user=UserResponse(id=user.id, email=user.email),
-        access_token=access_token,
-        token_type="bearer"
+        user=UserResponse(id=user.id, email=user.email, name=user.name),
+        access_token=token,
     )
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(
-    credentials: UserLogin,
-    session: Session = Depends(get_session)
-):
-    """
-    Login with email and password
-    
-    - **email**: User email
-    - **password**: User password
-    """
+def login(credentials: UserLogin, session: DBSession = Depends(get_session)):
     user = authenticate_user(session, credentials.email, credentials.password)
-    
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Generate access token
-    access_token = create_access_token(data={"sub": user.email})
-    
-    # Return response matching frontend expectations
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+
+    token = create_access_token(data={"sub": user.email})
+
     return TokenResponse(
-        user=UserResponse(id=user.id, email=user.email),
-        access_token=access_token,
-        token_type="bearer"
+        user=UserResponse(id=user.id, email=user.email, name=user.name),
+        access_token=token,
     )
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    session: Session = Depends(get_session)
-) -> UserResponse:
-    """
-    Get current authenticated user from JWT token
-    
-    This is a dependency that can be used to protect routes
-    """
-    token = credentials.credentials
-    
-    # Verify token
-    payload = verify_token(token)
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    email: str = payload.get("sub")
-    if email is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Get user from database
-    user = get_user_by_email(session, email)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    return UserResponse(id=user.id, email=user.email)
-
-
-@router.get("/me", response_model=UserResponse)
-async def get_me(current_user: UserResponse = Depends(get_current_user)):
-    """
-    Get current user information
-    
-    Requires authentication via Bearer token in the Authorization header
-    """
+@router.get("/me", response_model=UserProfileResponse)
+async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.put("/me", response_model=UserProfileResponse)
+async def update_me(
+    updates: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    session: DBSession = Depends(get_session),
+):
+    updated = update_user(session, current_user, updates.model_dump(exclude_unset=True))
+    return updated
+
+
+@router.delete("/me", status_code=204)
+async def delete_me(
+    current_user: User = Depends(get_current_user),
+    session: DBSession = Depends(get_session),
+):
+    soft_delete_user(session, current_user)
+    return None

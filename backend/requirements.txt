@@ -1,9 +1,30 @@
+# ── Core framework ────────────────────────────────────────────
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 sqlmodel==0.0.22
+python-multipart>=0.0.9
+
+# ── Auth (untouched) ──────────────────────────────────────────
 python-jose[cryptography]==3.3.0
 passlib==1.7.4
 bcrypt==4.0.1
-python-dotenv==1.0.1
 pydantic-settings==2.2.1
 email-validator==2.3.0
+python-dotenv==1.0.1
+
+# ── HTTP client (used for HF + Groq free API calls) ──────────
+httpx>=0.27.0
+
+# ── Audio feature extraction (DSP library, no model download) ─
+librosa>=0.10.0
+soundfile>=0.12.0
+
+# ── Video frame extraction (library, no model download) ───────
+opencv-python-headless>=4.9.0
+
+# ── Face detection (bundled in mediapipe package, no download) ─
+mediapipe>=0.10.0
+
+# ── Fusion Neural Network + training ─────────────────────────
+scikit-learn>=1.4.0
+numpy>=1.24.0

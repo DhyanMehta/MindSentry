@@ -1,6 +1,7 @@
 """
 Authentication service layer
 """
+from datetime import datetime
 from typing import Optional
 from sqlmodel import Session, select
 from app.models.user import User
@@ -9,36 +10,24 @@ from app.core.security import hash_password, verify_password
 
 
 def get_user_by_email(session: Session, email: str) -> Optional[User]:
-    """
-    Get user by email
-    
-    Args:
-        session: Database session
-        email: User email address
-        
-    Returns:
-        User if found, None otherwise
-    """
-    statement = select(User).where(User.email == email)
-    user = session.exec(statement).first()
-    return user
+    statement = select(User).where(User.email == email, User.deleted_at.is_(None))  # type: ignore
+    return session.exec(statement).first()
+
+
+def get_user_by_id(session: Session, user_id: int) -> Optional[User]:
+    statement = select(User).where(User.id == user_id, User.deleted_at.is_(None))  # type: ignore
+    return session.exec(statement).first()
 
 
 def create_user(session: Session, user_data: UserCreate) -> User:
-    """
-    Create a new user
-    
-    Args:
-        session: Database session
-        user_data: User creation data
-        
-    Returns:
-        Created user instance
-    """
-    hashed_password = hash_password(user_data.password)
+    hashed = hash_password(user_data.password)
     db_user = User(
+        name=user_data.name,
         email=user_data.email,
-        hashed_password=hashed_password
+        hashed_password=hashed,
+        birthday=user_data.birthday,
+        gender=user_data.gender,
+        timezone=user_data.timezone or "UTC",
     )
     session.add(db_user)
     session.commit()
@@ -47,20 +36,33 @@ def create_user(session: Session, user_data: UserCreate) -> User:
 
 
 def authenticate_user(session: Session, email: str, password: str) -> Optional[User]:
-    """
-    Authenticate a user
-    
-    Args:
-        session: Database session
-        email: User email
-        password: Plain text password
-        
-    Returns:
-        User if authentication successful, None otherwise
-    """
     user = get_user_by_email(session, email)
     if not user:
         return None
     if not verify_password(password, user.hashed_password):
         return None
+    # Update last_login
+    user.last_login = datetime.utcnow()
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def update_user(session: Session, user: User, updates: dict) -> User:
+    for key, value in updates.items():
+        if value is not None:
+            setattr(user, key, value)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def soft_delete_user(session: Session, user: User) -> User:
+    user.deleted_at = datetime.utcnow()
+    user.is_active = False
+    session.add(user)
+    session.commit()
+    session.refresh(user)
     return user
