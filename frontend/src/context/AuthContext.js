@@ -116,12 +116,12 @@ export const AuthProvider = ({ children }) => {
     /**
      * Sign up with email, password, and confirmPassword
      */
-    signup: useCallback(async (email, password, confirmPassword) => {
+    signup: useCallback(async (name, email, password, confirmPassword) => {
       try {
         dispatch({ type: 'SET_LOADING', payload: true });
         dispatch({ type: 'CLEAR_ERROR' });
 
-        const result = await AuthService.signup(email, password, confirmPassword);
+        const result = await AuthService.signup(name, email, password, confirmPassword);
         
         dispatch({
           type: 'SIGN_IN',

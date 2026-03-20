@@ -1,14 +1,13 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Image, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { 
-  FadeIn, 
-  SlideInDown, 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
-  Easing 
+import Animated, {
+  FadeIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,7 +19,7 @@ const { width } = Dimensions.get('window');
 
 export const OnboardingScreen = () => {
   const navigation = useNavigation();
-  
+
   // Floating animation for the logo
   const translateY = useSharedValue(0);
 
@@ -50,11 +49,10 @@ export const OnboardingScreen = () => {
 
       {/* 2. Main Content */}
       <View style={styles.contentContainer}>
-        
+
         {/* Logo Section */}
-        <Animated.View 
-            entering={FadeIn.duration(1000)} 
-            style={[styles.logoContainer, animatedLogoStyle]}
+        <Animated.View
+          style={[styles.logoContainer, animatedLogoStyle]}
         >
           <View style={styles.logoWrapper}>
             <Image source={Logo} style={styles.logo} />
@@ -64,50 +62,51 @@ export const OnboardingScreen = () => {
         </Animated.View>
 
         {/* Text Section */}
-        <View style={styles.textContainer}>
-            <Animated.Text 
-                entering={SlideInDown.duration(800).delay(200)} 
-                style={styles.title}
-            >
-                Welcome to{"\n"}
-                <Text style={styles.brandName}>MindSentry</Text>
-            </Animated.Text>
-            
-            <Animated.Text 
-                entering={SlideInDown.duration(800).delay(400)} 
-                style={styles.description}
-            >
-                Your AI-powered wellness companion. 
-                Track your emotional health through voice, facial expressions, and daily journaling.
-            </Animated.Text>
-        </View>
+        <Animated.View
+          style={styles.textContainer}
+          entering={FadeIn.duration(500).delay(300).easing(Easing.out(Easing.cubic))}
+        >
+          <Animated.Text
+            style={styles.title}
+          >
+            Welcome to{"\n"}
+            <Text style={styles.brandName}>MindSentry</Text>
+          </Animated.Text>
+
+          <Animated.Text
+            style={styles.description}
+          >
+            Your AI-powered wellness companion.
+            Track your emotional health through voice, facial expressions, and daily journaling.
+          </Animated.Text>
+        </Animated.View>
 
         {/* Action Section */}
-        <Animated.View 
-            entering={SlideInDown.duration(800).delay(600)} 
-            style={styles.footerContainer}
+        <Animated.View
+          style={styles.footerContainer}
+          entering={FadeIn.duration(500).delay(450).easing(Easing.out(Easing.cubic))}
         >
-            <Pressable 
-                onPress={handleGetStarted} 
-                style={({ pressed }) => [
-                    styles.button, 
-                    pressed && styles.buttonPressed
-                ]}
+          <Pressable
+            onPress={handleGetStarted}
+            style={({ pressed }) => [
+              styles.button,
+              pressed && styles.buttonPressed
+            ]}
+          >
+            <LinearGradient
+              colors={[colors.primary, '#7C3AED']} // Purple to deep violet
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.gradientButton}
             >
-                <LinearGradient
-                    colors={[colors.primary, '#7C3AED']} // Purple to deep violet
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.gradientButton}
-                >
-                    <Text style={styles.buttonText}>Get Started</Text>
-                    <Ionicons name="arrow-forward" size={20} color="#fff" />
-                </LinearGradient>
-            </Pressable>
+              <Text style={styles.buttonText}>Get Started</Text>
+              <Ionicons name="arrow-forward" size={20} color="#fff" />
+            </LinearGradient>
+          </Pressable>
 
-            <Text style={styles.loginLink} onPress={() => navigation.replace('Login')}>
-                Already have an account? <Text style={styles.loginLinkBold}>Log in</Text>
-            </Text>
+          <Text style={styles.loginLink} onPress={() => navigation.replace('Login')}>
+            Already have an account? <Text style={styles.loginLinkBold}>Log in</Text>
+          </Text>
         </Animated.View>
       </View>
     </View>
@@ -121,7 +120,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   // --- Background Decoration ---
   backgroundContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -149,7 +148,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     width: '100%',
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     justifyContent: 'space-between',
     paddingVertical: responsiveSize.xxl,
   },
@@ -164,13 +163,13 @@ const styles = StyleSheet.create({
   logoWrapper: {
     width: 140,
     height: 140,
-    borderRadius: 35, // Modern squircle look
+    borderRadius: 35,
     backgroundColor: '#fff',
     padding: 20,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
     elevation: 10,
     zIndex: 10,
     alignItems: 'center',
@@ -188,7 +187,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 50,
     backgroundColor: colors.primary,
-    opacity: 0.1,
+    opacity: 0.12,
     transform: [{ scaleX: 1.5 }],
   },
 
@@ -197,14 +196,16 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: responsiveSize.base,
   },
   title: {
     fontSize: 32,
     color: colors.textPrimary,
     textAlign: 'center',
-    fontWeight: '600',
-    lineHeight: 42,
-    marginBottom: 16,
+    fontWeight: '700',
+    lineHeight: 44,
+    marginBottom: 20,
+    letterSpacing: 0.3,
   },
   brandName: {
     fontWeight: '900',
@@ -214,25 +215,25 @@ const styles = StyleSheet.create({
     fontSize: fontSize.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 10,
+    lineHeight: 26,
+    paddingHorizontal: 16,
   },
 
   // --- Footer / Buttons ---
   footerContainer: {
     width: '100%',
     alignItems: 'center',
-    marginBottom: responsiveSize.lg,
+    marginBottom: responsiveSize.xl,
   },
   button: {
     width: '100%',
     borderRadius: 16,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
     elevation: 8,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   buttonPressed: {
     transform: [{ scale: 0.98 }],
@@ -250,10 +251,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#fff',
     fontWeight: '700',
+    letterSpacing: 0.5,
   },
   loginLink: {
     fontSize: 14,
     color: colors.textSecondary,
+    marginTop: 8,
   },
   loginLinkBold: {
     color: colors.primary,

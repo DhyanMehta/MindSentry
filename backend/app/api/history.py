@@ -49,9 +49,10 @@ def risk_trend(
     scores = session.exec(
         select(RiskScore)
         .where(RiskScore.user_id == current_user.id)
+        .order_by(RiskScore.id.desc())
         .limit(limit)
     ).all()
-    return scores
+    return list(reversed(scores))
 
 
 @router.get("/summary")

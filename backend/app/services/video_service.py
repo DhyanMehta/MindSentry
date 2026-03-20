@@ -13,6 +13,50 @@ from __future__ import annotations
 from pathlib import Path
 
 _face_cascade = None
+_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp', '.gif'}
+
+
+def _analyse_image(file_path) -> dict:
+    """Analyse a single still image captured from the phone camera."""
+    try:
+        import cv2
+        import numpy as np
+
+        img = cv2.imread(str(file_path))
+        if img is None:
+            raise RuntimeError("Could not read image file")
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        height, width = gray.shape
+        brightness = float(np.mean(gray)) / 255.0
+        lighting_score = round(min(1.0, brightness / 0.67), 3)
+
+        face_detected = 0
+        cascade = _get_face_cascade()
+        if cascade is not None:
+            faces = cascade.detectMultiScale(
+                gray, scaleFactor=1.1, minNeighbors=4, minSize=(60, 60)
+            )
+            face_detected = 1 if len(faces) > 0 else 0
+
+        return {
+            "duration_seconds": 0.0,
+            "fps": 0.0,
+            "resolution_width": width,
+            "resolution_height": height,
+            "face_detected": face_detected,
+            "face_ratio": float(face_detected),
+            "lighting_score": lighting_score,
+            "video_emotion": "neutral",
+        }
+    except Exception as e:
+        return {
+            "duration_seconds": None, "fps": None,
+            "resolution_width": None, "resolution_height": None,
+            "face_detected": 0, "face_ratio": 0.0,
+            "lighting_score": None, "video_emotion": "neutral",
+            "error": str(e),
+        }
 
 
 def _get_face_cascade():
@@ -31,14 +75,17 @@ def _get_face_cascade():
     return _face_cascade
 
 
-def analyse_video(file_path: str | Path) -> dict:
+def analyse_video(file_path) -> dict:
     """
-    Extract face presence, lighting score and basic metadata from a video.
+    Extract face presence, lighting score and basic metadata from a video or image.
 
-    Samples up to 10 evenly-spaced frames.
-    Each frame is checked for face presence using Haar cascade; brightness
-    is measured from the grayscale mean.
+    If the file is a still image (jpg/png/etc.), delegates to _analyse_image.
+    Otherwise samples up to 10 evenly-spaced video frames.
     """
+    # Route still images (phone camera photos) to the image analyser
+    if Path(str(file_path)).suffix.lower() in _IMAGE_EXTENSIONS:
+        return _analyse_image(file_path)
+
     try:
         import cv2
         import numpy as np

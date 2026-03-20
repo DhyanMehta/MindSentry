@@ -1,6 +1,6 @@
 # MindSentry Backend API
 
-Clean, scalable FastAPI backend with SQLite database and JWT authentication.
+Clean, scalable FastAPI backend with PostgreSQL (recommended) and JWT authentication.
 
 ## Setup Instructions
 
@@ -24,7 +24,26 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Run the Server
+### 3. Configure Environment (.env)
+
+Create a `backend/.env` file:
+
+```env
+# PostgreSQL (recommended)
+DATABASE_URL=postgresql+psycopg://postgres:YOUR_PASSWORD@localhost:5432/mindsentry
+
+# App settings
+DEBUG=true
+SECRET_KEY=your-secret-key-change-in-production-min-32-chars-long
+```
+
+If you still want SQLite for local testing, you can use:
+
+```env
+DATABASE_URL=sqlite:///./mindsentry.db
+```
+
+### 4. Run the Server
 
 ```bash
 uvicorn app.main:app --reload
@@ -138,7 +157,30 @@ Authorization: Bearer <your_access_token>
 
 ## Database
 
-This project uses SQLite for simplicity. The database file `mindsentry.db` is automatically created on first run.
+PostgreSQL is recommended. On startup, the app auto-creates all tables from models.
+
+### pgAdmin Setup
+
+1. Create database:
+
+```sql
+CREATE DATABASE mindsentry;
+```
+
+2. Optional: create dedicated DB user:
+
+```sql
+CREATE USER mindsentry_user WITH PASSWORD 'StrongPassword123!';
+GRANT ALL PRIVILEGES ON DATABASE mindsentry TO mindsentry_user;
+```
+
+3. Use matching connection string in `.env`:
+
+```env
+DATABASE_URL=postgresql+psycopg://mindsentry_user:StrongPassword123!@localhost:5432/mindsentry
+```
+
+4. Start API. Tables are created automatically.
 
 ## Security
 

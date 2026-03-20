@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # Database
-    database_url: str = "sqlite:///./mindsentry.db"
+    database_url: str = "postgresql+psycopg://postgres:YOUR_PASSWORD@localhost:5432/mindsentry"
 
     # JWT Settings
     secret_key: str = "your-secret-key-change-in-production-min-32-chars-long"

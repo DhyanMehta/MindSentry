@@ -20,12 +20,12 @@ export const AuthService = {
    * @param {string} confirmPassword - Password confirmation
    * @returns {Promise<{user, accessToken}>}
    */
-  signup: async (email, password, confirmPassword) => {
+  signup: async (name, email, password, confirmPassword) => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, confirmPassword }),
+        body: JSON.stringify({ name, email, password, confirmPassword }),
       });
 
       if (!response.ok) {

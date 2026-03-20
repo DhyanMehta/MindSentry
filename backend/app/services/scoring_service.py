@@ -151,7 +151,7 @@ def compute_scores(
         "scoring_source":             source,
         "text_emotion":  text_features.get("emotion")              if text_features  else None,
         "audio_emotion": audio_features.get("audio_emotion")       if audio_features else None,
-        "video_emotion": video_features.get("video_emotion", "neutral") if video_features else None,
+        "video_emotion": video_features.get("video_emotion") if video_features else None,
     }
 
 

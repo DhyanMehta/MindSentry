@@ -1,24 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { SectionHeader } from '../components/SectionHeader';
+import { ErrorBox } from '../components/ErrorBox';
 import { responsiveSize, fontSize } from '../utils/responsive';
 import { mockResources } from '../data/mockData';
 
 // Helper component for individual resource items
 const ResourceItem = ({ item, onPress, delay }) => (
-  <Animated.View 
-    entering={SlideInDown.duration(600).delay(delay)} 
+  <Animated.View
     style={styles.resourceCardContainer}
   >
-    <Pressable 
+    <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.resourceCard, 
+        styles.resourceCard,
         pressed && styles.resourceCardPressed
       ]}
     >
@@ -31,10 +31,10 @@ const ResourceItem = ({ item, onPress, delay }) => (
           {item.description || "Tap to view this helpful resource."}
         </Text>
         <View style={styles.badgeRow}>
-           <View style={styles.badge}>
-             <Ionicons name="wifi" size={10} color={colors.success} style={{marginRight: 4}} />
-             <Text style={styles.badgeText}>Available Offline</Text>
-           </View>
+          <View style={styles.badge}>
+            <Ionicons name="wifi" size={10} color={colors.success} style={{ marginRight: 4 }} />
+            <Text style={styles.badgeText}>Available Offline</Text>
+          </View>
         </View>
       </View>
       <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
@@ -44,107 +44,125 @@ const ResourceItem = ({ item, onPress, delay }) => (
 
 export const SupportScreen = () => {
   const navigation = useNavigation();
+  const [screenError, setScreenError] = useState('');
 
   const handleSupportCardPress = (item) => {
-    // Placeholder for actual navigation or link opening
-    console.log('Tapped resource:', item.title);
+    setScreenError(`Resource "${item.title}" is not available yet.`);
   };
 
   const handleEngageCounselor = () => {
     navigation.navigate('CounselorChat');
   };
 
-  const handleCrisisCall = () => {
-    // Opens the phone dialer with the crisis number
-    Linking.openURL('tel:988'); 
+  const handleCrisisCall = async () => {
+    try {
+      setScreenError('');
+      const url = 'tel:988';
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        setScreenError('Phone calling is unavailable on this device.');
+        return;
+      }
+      await Linking.openURL(url);
+    } catch (err) {
+      setScreenError(err.message || 'Could not open dialer. Please call 988 manually.');
+    }
   };
 
   return (
-    <ScrollView 
-      style={styles.container} 
+    <ScrollView
+      style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
-      <Animated.View entering={SlideInDown.duration(600).delay(100)} style={styles.headerContainer}>
-        <SectionHeader title="Support & Resources" />
+      <Animated.View>
+        <SectionHeader
+          title="Support & Resources"
+          showBack
+          onBackPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Dashboard'))}
+        />
         <Text style={styles.subHeader}>Get help when you need it most.</Text>
       </Animated.View>
 
-      {/* 1. AI Counselor Hero Card */}
-      <Animated.View entering={SlideInDown.duration(600).delay(200)}>
-        <LinearGradient
-            colors={[colors.secondary, '#6366f1']} // Indigo gradient
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.aiCard}
-        >
-            <View style={styles.aiHeader}>
-                <View style={styles.aiIconCircle}>
-                    <Ionicons name="chatbubbles" size={24} color={colors.secondary} />
-                </View>
-                <View style={styles.onlineBadge}>
-                    <View style={styles.onlineDot} />
-                    <Text style={styles.onlineText}>Online Now</Text>
-                </View>
-            </View>
-            
-            <Text style={styles.aiTitle}>Chat with AI Counselor</Text>
-            <Text style={styles.aiDesc}>
-                Feeling overwhelmed? Get instant, empathetic support and personalized coping strategies, 24/7.
-            </Text>
+      <View style={styles.errorBoxWrap}>
+        <ErrorBox message={screenError} onDismiss={() => setScreenError('')} />
+      </View>
 
-            <Pressable 
-                onPress={handleEngageCounselor} 
-                style={({ pressed }) => [styles.engageButton, pressed && { opacity: 0.9 }]}
-            >
-                <Text style={styles.engageButtonText}>Start Conversation</Text>
-                <Ionicons name="arrow-forward" size={18} color={colors.secondary} />
-            </Pressable>
+      {/* 1. AI Counselor Hero Card */}
+      <Animated.View>
+        <LinearGradient
+          colors={[colors.secondary, '#6366f1']} // Indigo gradient
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.aiCard}
+        >
+          <View style={styles.aiHeader}>
+            <View style={styles.aiIconCircle}>
+              <Ionicons name="chatbubbles" size={24} color={colors.secondary} />
+            </View>
+            <View style={styles.onlineBadge}>
+              <View style={styles.onlineDot} />
+              <Text style={styles.onlineText}>Online Now</Text>
+            </View>
+          </View>
+
+          <Text style={styles.aiTitle}>Chat with AI Counselor</Text>
+          <Text style={styles.aiDesc}>
+            Feeling overwhelmed? Get instant, empathetic support and personalized coping strategies, 24/7.
+          </Text>
+
+          <Pressable
+            onPress={handleEngageCounselor}
+            style={({ pressed }) => [styles.engageButton, pressed && { opacity: 0.9 }]}
+          >
+            <Text style={styles.engageButtonText}>Start Conversation</Text>
+            <Ionicons name="arrow-forward" size={18} color={colors.secondary} />
+          </Pressable>
         </LinearGradient>
       </Animated.View>
 
       {/* 2. Crisis / Emergency Banner */}
-      <Animated.View entering={SlideInDown.duration(600).delay(300)} style={styles.crisisContainer}>
-         <View style={styles.crisisBorder} />
-         <View style={styles.crisisContent}>
-             <View style={styles.crisisHeader}>
-                 <Ionicons name="warning" size={20} color={colors.danger} />
-                 <Text style={styles.crisisTitle}>In Crisis?</Text>
-             </View>
-             <Text style={styles.crisisText}>
-                 If you or someone you know is in immediate danger, please reach out for help immediately.
-             </Text>
-             <Pressable onPress={handleCrisisCall} style={styles.crisisButton}>
-                 <Text style={styles.crisisButtonText}>Call Crisis Line (988)</Text>
-             </Pressable>
-         </View>
+      <Animated.View>
+        <View style={styles.crisisBorder} />
+        <View style={styles.crisisContent}>
+          <View style={styles.crisisHeader}>
+            <Ionicons name="warning" size={20} color={colors.danger} />
+            <Text style={styles.crisisTitle}>In Crisis?</Text>
+          </View>
+          <Text style={styles.crisisText}>
+            If you or someone you know is in immediate danger, please reach out for help immediately.
+          </Text>
+          <Pressable onPress={handleCrisisCall} style={styles.crisisButton}>
+            <Text style={styles.crisisButtonText}>Call Crisis Line (988)</Text>
+          </Pressable>
+        </View>
       </Animated.View>
 
       {/* 3. Resources List */}
       <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Self-Help Library</Text>
+        <Text style={styles.sectionTitle}>Self-Help Library</Text>
       </View>
 
       <View style={styles.resourcesList}>
         {mockResources.map((item, idx) => (
-            <ResourceItem 
-                key={idx} 
-                item={item} 
-                onPress={() => handleSupportCardPress(item)} 
-                delay={400 + (idx * 100)} 
-            />
+          <ResourceItem
+            key={idx}
+            item={item}
+            onPress={() => handleSupportCardPress(item)}
+            delay={400 + (idx * 100)}
+          />
         ))}
       </View>
 
       {/* 4. Disclaimer Footer */}
-      <Animated.View entering={FadeIn.delay(800)} style={styles.footerContainer}>
-        <Ionicons name="medical-outline" size={20} color={colors.textSecondary} style={{marginBottom: 8}} />
+      <Animated.View>
+        <Ionicons name="medical-outline" size={20} color={colors.textSecondary} style={{ marginBottom: 8 }} />
         <Text style={styles.disclaimerText}>
-            This app is not a replacement for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider.
+          This app is not a replacement for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider.
         </Text>
       </Animated.View>
-      
+
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -157,6 +175,9 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: responsiveSize.lg,
+  },
+  errorBoxWrap: {
+    marginBottom: 8,
   },
   headerContainer: {
     marginBottom: responsiveSize.lg,

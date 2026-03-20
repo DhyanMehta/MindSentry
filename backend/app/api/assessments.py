@@ -11,6 +11,7 @@ Endpoints:
 from __future__ import annotations
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.core.database import get_session
@@ -21,6 +22,23 @@ from app.schemas.assessment import AssessmentCreate, AssessmentUpdate, Assessmen
 
 router = APIRouter(prefix="/assessments", tags=["Assessments"])
 
+VALID_SESSION_TYPES = {
+    "checkin",
+    "scheduled_assessment",
+    "crisis_screen",
+    "clinician_review",
+}
+
+SESSION_TYPE_ALIASES = {
+    "capture": "checkin",
+    "chat": "clinician_review",
+}
+
+
+def _normalize_session_type(value: Optional[str]) -> str:
+    normalized = (value or "checkin").strip().lower()
+    return SESSION_TYPE_ALIASES.get(normalized, normalized)
+
 
 @router.post("/", response_model=AssessmentResponse, status_code=status.HTTP_201_CREATED)
 def create_assessment(
@@ -28,13 +46,28 @@ def create_assessment(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    session_type = _normalize_session_type(data.session_type)
+    if session_type not in VALID_SESSION_TYPES:
+        allowed = ", ".join(sorted(VALID_SESSION_TYPES))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid session_type '{data.session_type}'. Allowed values: {allowed}.",
+        )
+
     assessment = Assessment(
         user_id=current_user.id,
-        session_type=data.session_type,
+        session_type=session_type,
         notes=data.notes,
     )
     session.add(assessment)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid assessment payload.",
+        )
     session.refresh(assessment)
     return assessment
 

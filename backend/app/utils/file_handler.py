@@ -32,6 +32,8 @@ def _ext(content_type: str) -> str:
         "audio/wav": ".wav", "audio/mpeg": ".mp3", "audio/ogg": ".ogg",
         "audio/webm": ".webm", "audio/mp4": ".m4a",
         "video/mp4": ".mp4", "video/webm": ".webm", "video/quicktime": ".mov",
+        "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/png": ".png",
+        "image/webp": ".webp", "image/bmp": ".bmp",
     }
     return mapping.get(content_type, ".bin")
 

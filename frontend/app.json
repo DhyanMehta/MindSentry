@@ -13,22 +13,17 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.mindsentry.app"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.mindsentry.app"
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "apiUrl": "http://10.33.202.90:8000"
     }
   }
 }

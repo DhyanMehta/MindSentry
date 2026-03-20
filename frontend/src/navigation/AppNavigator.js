@@ -2,12 +2,14 @@ import React, { useContext } from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Platform, View, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { View, ActivityIndicator } from 'react-native';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { CheckInScreen } from '../screens/CheckInScreen';
 import { InsightsScreen } from '../screens/InsightsScreen';
 import { SupportScreen } from '../screens/SupportScreen';
+import { TrendsScreen } from '../screens/TrendsScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { CounselorChatScreen } from '../screens/CounselorChatScreen';
 import { LoginScreen } from '../screens/LoginScreen';
@@ -33,8 +35,9 @@ const navTheme = {
 
 const screenOptions = ({ route }) => ({
   headerShown: false,
-  tabBarStyle: { 
-    backgroundColor: colors.background, 
+  animationEnabled: false,
+  tabBarStyle: {
+    backgroundColor: colors.background,
     borderTopColor: colors.divider,
     borderTopWidth: 1,
     height: 70,
@@ -56,9 +59,10 @@ const screenOptions = ({ route }) => ({
   tabBarIcon: ({ color, size }) => {
     const icons = {
       Dashboard: 'speedometer-outline',
-      CheckIn: 'chatbubbles-outline',
-      Insights: 'analytics-outline',
+      Trends: 'analytics-outline',
+      Insights: 'bulb-outline',
       Support: 'heart-outline',
+      Profile: 'person-outline',
     };
     return <Ionicons name={icons[route.name]} size={size} color={color} />;
   },
@@ -77,11 +81,15 @@ const SplashScreen = () => (
  * Main tab navigator shown to authenticated users
  */
 const MainTabNavigator = () => (
-  <Tab.Navigator screenOptions={screenOptions}>
+  <Tab.Navigator
+    screenOptions={screenOptions}
+    sceneContainerStyle={{ backgroundColor: colors.background }}
+  >
     <Tab.Screen name="Dashboard" component={DashboardScreen} />
-    <Tab.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check-in' }} />
+    <Tab.Screen name="Trends" component={TrendsScreen} />
     <Tab.Screen name="Insights" component={InsightsScreen} />
     <Tab.Screen name="Support" component={SupportScreen} />
+    <Tab.Screen name="Profile" component={ProfileScreen} />
   </Tab.Navigator>
 );
 
@@ -100,49 +108,56 @@ export const AppNavigator = () => {
 
   return (
     <NavigationContainer theme={navTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false, animation: Platform.OS === 'ios' ? 'slide_from_right' : 'none' }}>
         {userToken == null ? (
           // Auth Stack: User is NOT logged in
           <Stack.Group>
-            <Stack.Screen 
-              name="Onboarding" 
+            <Stack.Screen
+              name="Onboarding"
               component={OnboardingScreen}
-              options={{ animationEnabled: false }}
             />
-            <Stack.Screen 
-              name="Login" 
+            <Stack.Screen
+              name="Login"
               component={LoginScreen}
-              options={{ animationEnabled: false }}
             />
-            <Stack.Screen 
-              name="Signup" 
+            <Stack.Screen
+              name="Signup"
               component={SignupScreen}
-              options={{ 
+              options={{
                 cardStyle: { backgroundColor: colors.background },
-                gestureEnabled: true,
+                gestureEnabled: false,
               }}
             />
           </Stack.Group>
         ) : (
           // Main Stack: User IS logged in
           <Stack.Group>
-            <Stack.Screen 
-              name="MainTabs" 
+            <Stack.Screen
+              name="MainTabs"
               component={MainTabNavigator}
-              options={{ animationEnabled: false }}
             />
-            <Stack.Screen 
-              name="CounselorChat" 
+            <Stack.Screen
+              name="CounselorChat"
               component={CounselorChatScreen}
               options={{
                 cardStyle: { backgroundColor: colors.background },
+                gestureEnabled: false,
               }}
             />
-            <Stack.Screen 
-              name="CaptureScreen" 
+            <Stack.Screen
+              name="CaptureScreen"
               component={CaptureScreen}
               options={{
                 cardStyle: { backgroundColor: colors.background },
+                gestureEnabled: false,
+              }}
+            />
+            <Stack.Screen
+              name="CheckInScreen"
+              component={CheckInScreen}
+              options={{
+                cardStyle: { backgroundColor: colors.background },
+                gestureEnabled: false,
               }}
             />
           </Stack.Group>

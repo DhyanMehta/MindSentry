@@ -49,7 +49,10 @@ WELLNESS_FLAG_THRESHOLD = 0.5   # distress_score above this raises wellness_flag
 MAX_AUDIO_SIZE_MB = 50
 MAX_VIDEO_SIZE_MB = 200
 ALLOWED_AUDIO_TYPES = {"audio/wav", "audio/mpeg", "audio/ogg", "audio/webm", "audio/mp4"}
-ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
+ALLOWED_VIDEO_TYPES = {
+    "video/mp4", "video/webm", "video/quicktime",
+    "image/jpeg", "image/jpg", "image/png", "image/webp", "image/bmp",
+}
 
 # ── ML model names (local / HF hub) ───────────────────────────
 MODEL_TEXT_EMOTION = "j-hartmann/emotion-english-distilroberta-base"
