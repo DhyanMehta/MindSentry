@@ -14,7 +14,7 @@ export const AssessmentService = {
   storeCurrentId: async (id) => {
     try {
       await AsyncStorage.setItem(CURRENT_ASSESSMENT_KEY, id);
-    } catch (_) {}
+    } catch (_) { }
   },
 
   getCurrentId: async () => {
@@ -28,7 +28,7 @@ export const AssessmentService = {
   clearCurrentId: async () => {
     try {
       await AsyncStorage.removeItem(CURRENT_ASSESSMENT_KEY);
-    } catch (_) {}
+    } catch (_) { }
   },
 
   // ── Full check-in flow (mood + questions + optional media → analysis) ───────
@@ -56,8 +56,14 @@ export const AssessmentService = {
     // Step 5: Fetch risk and recommendations
     const risk = await ApiService.getRiskScore(assessment.id);
     const recommendations = await ApiService.getRecommendations(assessment.id);
+    let inference = null;
+    try {
+      inference = await ApiService.getInferenceTracking(assessment.id);
+    } catch (_) {
+      inference = null;
+    }
 
-    return { assessment, result, risk, recommendations };
+    return { assessment, result, risk, recommendations, inference };
   },
 
   // ── Enhance existing session with audio / photo ──────────────────────────────
@@ -79,7 +85,13 @@ export const AssessmentService = {
     const result = await ApiService.runAnalysis(assessmentId);
     const risk = await ApiService.getRiskScore(assessmentId);
     const recommendations = await ApiService.getRecommendations(assessmentId);
-    return { result, risk, recommendations };
+    let inference = null;
+    try {
+      inference = await ApiService.getInferenceTracking(assessmentId);
+    } catch (_) {
+      inference = null;
+    }
+    return { result, risk, recommendations, inference };
   },
 
   // ── Wellness score derived from risk scores ──────────────────────────────────
@@ -129,7 +141,7 @@ export const AssessmentService = {
     recommendation_type: rec.recommendation_type,
   }),
 
-  // ── Quick AI counselor reply based on emotion ─────────────────────────────────
+  // ── Quick AarogyaAI reply based on emotion ───────────────────────────────────
   buildCounselorReply: (analysisResult, recommendations) => {
     const emotion = analysisResult.text_emotion || 'neutral';
     const stressScore = analysisResult.stress_score ?? 0.5;

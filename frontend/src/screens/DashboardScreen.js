@@ -219,8 +219,9 @@ export const DashboardScreen = () => {
           </View>
           <Ionicons name="chevron-forward" size={20} color="#fff" style={{ marginLeft: 'auto', opacity: 0.8 }} />
         </Pressable>
-        <Pressable style={[styles.buttonBase, styles.secondaryButton]} onPress={() => navigation.navigate('Insights')}>
-          <Ionicons name="bulb-outline" size={24} color={colors.textPrimary} />
+        <Pressable style={[styles.buttonBase, styles.secondaryButton]} onPress={() => navigation.navigate('ChatBot')}>
+          <Ionicons name="chatbubbles-outline" size={22} color={colors.textPrimary} style={{ marginRight: 10 }} />
+          <Text style={styles.secondaryButtonTitle}>AarogyaAI</Text>
         </Pressable>
       </Animated.View>
 
@@ -357,7 +358,8 @@ const styles = StyleSheet.create({
   },
   primaryButtonTitle: { color: '#fff', fontWeight: '700', fontSize: fontSize.body, letterSpacing: 0.3 },
   primaryButtonSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, letterSpacing: 0.1 },
-  secondaryButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0', width: 64, justifyContent: 'center' },
+  secondaryButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center' },
+  secondaryButtonTitle: { color: colors.textPrimary, fontWeight: '700', fontSize: fontSize.body, letterSpacing: 0.2 },
 
   metricsSection: { marginBottom: responsiveSize.xl },
   sectionTitle: {
@@ -403,7 +405,7 @@ const styles = StyleSheet.create({
     marginHorizontal: responsiveSize.lg, marginBottom: responsiveSize.lg,
     shadowColor: '#A16207', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
   },
-  disclaimerTitle: { fontSize: 14, fontWeight: '800', color: '#9A3412', marginBottom: 8, letterSpacing: 0.2  },
+  disclaimerTitle: { fontSize: 14, fontWeight: '800', color: '#9A3412', marginBottom: 8, letterSpacing: 0.2 },
   disclaimerText: { fontSize: 13, color: '#9A3412', lineHeight: 21, letterSpacing: 0.1 },
 
   captureCard: {

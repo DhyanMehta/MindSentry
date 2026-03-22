@@ -20,10 +20,12 @@ from app.models.questionnaire import (
     QuestionnaireTemplate, QuestionnaireQuestion,
     QuestionnaireResponse, QuestionnaireResponseItem,
 )
+from app.models.extracted_feature import ExtractedFeature
 from app.schemas.questionnaire import (
     QuestionnaireTemplateResponse, QuestionnaireQuestionResponse,
     QuestionnaireResponseCreate, QuestionnaireResponseOut,
 )
+import json
 
 router = APIRouter(prefix="/questionnaires", tags=["Questionnaires"])
 
@@ -77,6 +79,22 @@ def submit_questionnaire(
             scored_value=item_data.scored_value,
         )
         session.add(item)
+
+    # Persist questionnaire modality features so fusion consumes a stored modality output,
+    # just like text/audio/video extracted features.
+    q_features = {
+        "total_score": float(total),
+        "item_count": len(data.items),
+        "scored_item_count": sum(1 for i in data.items if i.scored_value is not None),
+    }
+    session.add(ExtractedFeature(
+        assessment_id=data.assessment_id,
+        modality_type="questionnaire",
+        feature_namespace="questionnaire",
+        feature_json=json.dumps(q_features),
+        extractor_name="questionnaire-aggregator",
+        extractor_version="1.0",
+    ))
 
     session.commit()
     session.refresh(response)

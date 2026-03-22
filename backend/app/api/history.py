@@ -8,7 +8,8 @@ Endpoints:
 """
 from __future__ import annotations
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query
+import logging
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlmodel import Session, select
 
 from app.core.database import get_session
@@ -20,6 +21,7 @@ from app.models.risk_score import RiskScore
 from app.schemas.assessment import AssessmentResponse
 from app.schemas.analysis import AnalysisResultResponse, RiskScoreResponse
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/history", tags=["History"])
 
 
@@ -30,13 +32,23 @@ def assessment_history(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    return session.exec(
-        select(Assessment)
-        .where(Assessment.user_id == current_user.id)
-        .order_by(Assessment.started_at.desc())
-        .offset(offset)
-        .limit(limit)
-    ).all()
+    try:
+        logger.debug(f"Fetching assessments for user {current_user.id}: limit={limit}, offset={offset}")
+        results = session.exec(
+            select(Assessment)
+            .where(Assessment.user_id == current_user.id)
+            .order_by(Assessment.started_at.desc())
+            .offset(offset)
+            .limit(limit)
+        ).all()
+        logger.debug(f"Found {len(results)} assessments for user {current_user.id}")
+        return results
+    except Exception as e:
+        logger.exception(f"Error fetching assessments for user {current_user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch assessments"
+        )
 
 
 @router.get("/trend", response_model=List[RiskScoreResponse])
@@ -46,13 +58,22 @@ def risk_trend(
     session: Session = Depends(get_session),
 ):
     """Return the last N risk scores ordered by assessment date for trend charts."""
-    scores = session.exec(
-        select(RiskScore)
-        .where(RiskScore.user_id == current_user.id)
-        .order_by(RiskScore.id.desc())
-        .limit(limit)
-    ).all()
-    return list(reversed(scores))
+    try:
+        logger.debug(f"Fetching risk trend for user {current_user.id}: limit={limit}")
+        scores = session.exec(
+            select(RiskScore)
+            .where(RiskScore.user_id == current_user.id)
+            .order_by(RiskScore.id.desc())
+            .limit(limit)
+        ).all()
+        logger.debug(f"Found {len(scores)} risk scores for user {current_user.id}")
+        return list(reversed(scores))
+    except Exception as e:
+        logger.exception(f"Error fetching risk trend for user {current_user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch risk trend"
+        )
 
 
 @router.get("/summary")
@@ -60,27 +81,37 @@ def summary(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    assessments = session.exec(
-        select(Assessment).where(Assessment.user_id == current_user.id)
-    ).all()
-    completed = [a for a in assessments if a.status == "completed"]
-    results = session.exec(
-        select(AnalysisResult).where(AnalysisResult.user_id == current_user.id)
-    ).all()
+    try:
+        logger.debug(f"Fetching summary for user {current_user.id}")
+        assessments = session.exec(
+            select(Assessment).where(Assessment.user_id == current_user.id)
+        ).all()
+        completed = [a for a in assessments if a.status == "completed"]
+        results = session.exec(
+            select(AnalysisResult).where(AnalysisResult.user_id == current_user.id)
+        ).all()
 
-    avg_stress = (
-        round(sum(r.stress_score or 0 for r in results) / len(results), 3)
-        if results else None
-    )
-    avg_mood = (
-        round(sum(r.mood_score or 0 for r in results) / len(results), 3)
-        if results else None
-    )
+        avg_stress = (
+            round(sum(r.stress_score or 0 for r in results) / len(results), 3)
+            if results else None
+        )
+        avg_mood = (
+            round(sum(r.mood_score or 0 for r in results) / len(results), 3)
+            if results else None
+        )
 
-    return {
-        "total_assessments": len(assessments),
-        "completed_assessments": len(completed),
-        "avg_stress_score": avg_stress,
-        "avg_mood_score": avg_mood,
-        "crisis_events": sum(1 for r in results if r.crisis_flag),
-    }
+        summary_data = {
+            "total_assessments": len(assessments),
+            "completed_assessments": len(completed),
+            "avg_stress_score": avg_stress,
+            "avg_mood_score": avg_mood,
+            "crisis_events": sum(1 for r in results if r.crisis_flag),
+        }
+        logger.debug(f"Summary for user {current_user.id}: {summary_data}")
+        return summary_data
+    except Exception as e:
+        logger.exception(f"Error fetching summary for user {current_user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch summary"
+        )

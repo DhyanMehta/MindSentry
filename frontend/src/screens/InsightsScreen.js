@@ -144,6 +144,9 @@ export const InsightsScreen = () => {
             textEmotion: analysis?.text_emotion || 'N/A',
             voiceEmotion: analysis?.audio_emotion || 'N/A',
             faceEmotion: analysis?.video_emotion || 'N/A',
+            visualInputType: analysis?.visual_input_type || 'unknown',
+            overallSpoofRisk: analysis?.overall_spoof_risk,
+            overallIntegrity: analysis?.overall_integrity_score,
             insight: topInsight,
           };
         })
@@ -268,6 +271,9 @@ export const InsightsScreen = () => {
                 </View>
                 <Text style={styles.historyInsightText}>{row.insight}</Text>
                 <Text style={styles.historyMetaText}>Text: {row.textEmotion} | Voice: {row.voiceEmotion} | Face: {row.faceEmotion}</Text>
+                <Text style={styles.historyMetaText}>
+                  Input: {row.visualInputType} | Integrity: {row.overallIntegrity != null ? `${Math.round(row.overallIntegrity * 100)}%` : 'N/A'} | Spoof risk: {row.overallSpoofRisk != null ? `${Math.round(row.overallSpoofRisk * 100)}%` : 'N/A'}
+                </Text>
               </View>
             ))
           )}

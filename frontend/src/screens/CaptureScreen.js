@@ -194,6 +194,7 @@ export const CaptureScreen = ({ navigation }) => {
 
   // ── Results Screen ─────────────────────────────────────────────────────────
   if (result) {
+    const formatConfidence = (value) => (value != null ? `${Math.round(value * 100)}%` : 'N/A');
     const riskLevel = riskScore?.final_risk_level || 'low';
     const riskColor = RISK_COLORS[riskLevel] || RISK_COLORS.low;
     const stressScore = result.stress_score != null ? Math.round(result.stress_score * 100) : '--';
@@ -201,6 +202,9 @@ export const CaptureScreen = ({ navigation }) => {
     const audioEmotion = result.audio_emotion || 'N/A';
     const videoEmotion = result.video_emotion || 'N/A';
     const textEmotion = result.text_emotion || 'N/A';
+    const textConfidence = formatConfidence(result.text_confidence);
+    const audioConfidence = formatConfidence(result.audio_confidence);
+    const videoConfidence = formatConfidence(result.video_confidence);
     const topRec = recommendations[0];
     const riskMetrics = [
       { label: 'Stress', value: riskScore?.stress_score },
@@ -218,6 +222,18 @@ export const CaptureScreen = ({ navigation }) => {
           </View>
           <Text style={styles.resultsTitle}>Capture Complete</Text>
           <Text style={styles.resultsSubtitle}>Multi-modal analysis finished</Text>
+        </Animated.View>
+
+        <Animated.View>
+          <View style={styles.recCardHeader}>
+            <Ionicons name="layers-outline" size={18} color={colors.primary} />
+            <Text style={styles.recCardTitle}>Modality Confidence</Text>
+          </View>
+          <View style={styles.confidenceRow}>
+            <View style={styles.confidencePill}><Text style={styles.confidencePillText}>Text: {textConfidence}</Text></View>
+            <View style={styles.confidencePill}><Text style={styles.confidencePillText}>Voice: {audioConfidence}</Text></View>
+            <View style={styles.confidencePill}><Text style={styles.confidencePillText}>Face: {videoConfidence}</Text></View>
+          </View>
         </Animated.View>
 
         <Animated.View>
@@ -569,6 +585,16 @@ const styles = StyleSheet.create({
   stat: { alignItems: 'center', width: '20%' },
   statValue: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   statLabel: { fontSize: 11, color: colors.textSecondary, marginTop: 4 },
+  confidenceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  confidencePill: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  confidencePillText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
   riskGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6, marginBottom: 12 },
   riskGridItem: { width: '50%', paddingHorizontal: 6, paddingBottom: 10 },
   riskGridValue: {

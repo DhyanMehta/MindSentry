@@ -1,4 +1,4 @@
-# ── Core framework ────────────────────────────────────────────
+    # ── Core framework ────────────────────────────────────────────
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 sqlmodel==0.0.22
@@ -21,11 +21,36 @@ librosa>=0.10.0
 soundfile>=0.12.0
 
 # ── Video frame extraction (library, no model download) ───────
-opencv-python-headless>=4.9.0
+opencv-python-headless==4.11.0.86
+opencv-contrib-python==4.11.0.86
 
 # ── Face detection (bundled in mediapipe package, no download) ─
 mediapipe>=0.10.0
 
 # ── Fusion Neural Network + training ─────────────────────────
 scikit-learn>=1.4.0
-numpy>=1.24.0
+numpy==1.26.4
+
+# ── LangChain & RAG Pipeline ──────────────────────────────────
+langchain==0.1.13
+langchain-community==0.0.29
+langchain-core==0.1.40
+langchain-openai==0.1.1
+langchain-groq==0.1.0
+
+# ── Vector Store & Embeddings ─────────────────────────────────
+chromadb>=0.4.22
+sentence-transformers>=2.2.2
+
+# ── LLM & Agent Support ───────────────────────────────────────
+openai>=1.3.0
+groq>=0.4.1
+pydantic>=2.0.0
+
+# ── Geolocation & Maps ────────────────────────────────────────
+geopy>=2.4.0
+googlemaps>=4.10.0
+
+# ── Additional utilities ──────────────────────────────────────
+pydantic-settings>=2.0.0
+python-dateutil>=2.8.0

@@ -13,14 +13,30 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "MindSentry uses your location to find nearby clinics and emergency services.",
+        "NSCameraUsageDescription": "MindSentry uses your camera to capture video for wellness analysis.",
+        "NSMicrophoneUsageDescription": "MindSentry uses your microphone to capture audio for wellness analysis."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "CALL_PHONE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "extra": {
+      "apiUrl": ""
     },
     "web": {
       "favicon": "./assets/favicon.png"

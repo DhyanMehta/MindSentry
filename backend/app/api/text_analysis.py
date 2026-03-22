@@ -55,8 +55,8 @@ def submit_text(
         modality_type="text",
         feature_namespace="emotion",
         feature_json=json.dumps(result),
-        extractor_name="j-hartmann/emotion-english-distilroberta-base",
-        extractor_version="1.0",
+        extractor_name="distilroberta-base-go-emotions",
+        extractor_version="1.1",
     )
     session.add(feature)
 

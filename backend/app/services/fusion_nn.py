@@ -49,6 +49,86 @@ OUTPUT_NAMES = [
     "crisis_score",
 ]
 
+MODEL_NAME = "tuned_mlp"
+
+
+def feature_vector_to_dict(feature_vector: list[float]) -> dict:
+    """Return named feature mapping in production order."""
+    return {
+        name: float(feature_vector[i])
+        for i, name in enumerate(FEATURE_NAMES)
+    }
+
+
+def explain_dominant_features(feature_vector: list[float], output_scores: Dict[str, float]) -> dict:
+    """Estimate dominant drivers for each output score.
+
+    Uses the same synthetic-data target structure used in notebook training.
+    Returned values are contribution magnitudes (not SHAP values).
+    """
+    f = feature_vector_to_dict(feature_vector)
+
+    stress = float(output_scores.get("stress_score", 0.0) or 0.0)
+    low_mood = float(output_scores.get("low_mood_score", 0.0) or 0.0)
+    burnout = float(output_scores.get("burnout_score", 0.0) or 0.0)
+    social = float(output_scores.get("social_withdrawal_score", 0.0) or 0.0)
+
+    contribution_map = {
+        "stress_score": {
+            "text_stress": 0.30 * f["text_stress"],
+            "audio_stress": 0.25 * f["audio_stress"],
+            "video_face_inverse": 0.15 * (1.0 - f["video_face"]),
+            "q_stress": 0.20 * f["q_stress"],
+            "q_sleep_pen": 0.10 * f["q_sleep_pen"],
+        },
+        "low_mood_score": {
+            "text_mood_inverse": 0.35 * (1.0 - f["text_mood"]),
+            "q_mood_inverse": 0.20 * (1.0 - f["q_mood"]),
+            "q_sleep_pen": 0.20 * f["q_sleep_pen"],
+            "video_lighting_inverse": 0.15 * (1.0 - f["video_lighting"]),
+            "text_stress": 0.10 * f["text_stress"],
+        },
+        "burnout_score": {
+            "stress_score": 0.55 * stress,
+            "low_mood_score": 0.35 * low_mood,
+            "q_sleep_pen": 0.10 * f["q_sleep_pen"],
+        },
+        "social_withdrawal_score": {
+            "video_face_inverse": 0.45 * (1.0 - f["video_face"]),
+            "low_mood_score": 0.30 * low_mood,
+            "stress_score": 0.15 * stress,
+            "q_sleep_pen": 0.10 * f["q_sleep_pen"],
+        },
+        "crisis_score": {
+            "stress_score": 0.45 * stress,
+            "low_mood_score": 0.35 * low_mood,
+            "burnout_score": 0.15 * burnout,
+            "social_withdrawal_score": 0.05 * social,
+        },
+    }
+
+    explained = {}
+    for score_name, contrib in contribution_map.items():
+        total = sum(max(v, 0.0) for v in contrib.values())
+        ranked = sorted(contrib.items(), key=lambda kv: kv[1], reverse=True)
+        top_items = []
+        for feature_name, value in ranked[:3]:
+            pct = (value / total * 100.0) if total > 0 else 0.0
+            top_items.append({
+                "feature": feature_name,
+                "contribution": round(float(value), 6),
+                "share_pct": round(float(pct), 2),
+            })
+
+        dominant = top_items[0] if top_items else None
+        explained[score_name] = {
+            "dominant_feature": dominant["feature"] if dominant else None,
+            "dominant_share_pct": dominant["share_pct"] if dominant else 0.0,
+            "top_features": top_items,
+        }
+
+    return explained
+
 
 def _load() -> Optional[object]:
     """Load model from disk (once). Returns None if file not found."""
@@ -62,6 +142,13 @@ def _load() -> Optional[object]:
         except Exception:
             _model = None
     return _model
+
+
+def _safe_float(value, default: float) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return float(default)
 
 
 def build_feature_vector(
@@ -108,10 +195,26 @@ def build_feature_vector(
 
     # ── Questionnaire ─────────────────────────────────────────
     if has_q:
-        q_stress    = float(questionnaire_data.get("stress_level", 5)) / 10.0
-        q_mood      = float(questionnaire_data.get("mood_level",   5)) / 10.0
-        sleep_h     = float(questionnaire_data.get("sleep_hours",  7))
-        q_sleep_pen = max(0.0, (8.0 - min(sleep_h, 8.0)) / 8.0)
+        has_direct_q_fields = all(
+            key in questionnaire_data for key in ("stress_level", "mood_level", "sleep_hours")
+        )
+
+        if has_direct_q_fields:
+            q_stress = _safe_float(questionnaire_data.get("stress_level", 5.0), 5.0) / 10.0
+            q_mood = _safe_float(questionnaire_data.get("mood_level", 5.0), 5.0) / 10.0
+            sleep_h = _safe_float(questionnaire_data.get("sleep_hours", 7.0), 7.0)
+            q_sleep_pen = max(0.0, (8.0 - min(sleep_h, 8.0)) / 8.0)
+        elif "total_score" in questionnaire_data and questionnaire_data.get("total_score") is not None:
+            # Fallback path for compact questionnaire payloads that only provide total score.
+            # Assume a common 0..40 band and project it into the trained feature spaces.
+            total_score = _safe_float(questionnaire_data.get("total_score"), 20.0)
+            total_norm = float(np.clip(total_score / 40.0, 0.0, 1.0))
+            q_stress = total_norm
+            q_mood = 1.0 - total_norm
+            q_sleep_pen = float(np.clip(0.2 + 0.6 * total_norm, 0.0, 1.0))
+        else:
+            # Unknown questionnaire schema: do not inject misleading defaults.
+            q_stress = q_mood = q_sleep_pen = 0.0
     else:
         q_stress = q_mood = q_sleep_pen = 0.0
 

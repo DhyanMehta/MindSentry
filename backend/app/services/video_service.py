@@ -11,9 +11,94 @@ This requires no internet access and no separate model file.
 """
 from __future__ import annotations
 from pathlib import Path
+import httpx
+
+from app.core.config import get_settings
 
 _face_cascade = None
 _IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp', '.gif'}
+_HF_FACE_URL = "https://api-inference.huggingface.co/models/dima806/facial_emotions_image_detection"
+
+_EMOTION_MAP = {
+    "angry": "anger",
+    "disgust": "disgust",
+    "fear": "fear",
+    "happy": "joy",
+    "neutral": "neutral",
+    "sad": "sadness",
+    "surprise": "surprise",
+}
+
+
+def _visual_integrity(
+    input_type: str,
+    face_detected: int,
+    lighting_score: float | None,
+    face_ratio: float,
+    video_confidence: float,
+) -> dict:
+    risk = 0.0
+    flags: list[str] = []
+
+    if face_detected == 0:
+        risk += 0.35
+        flags.append("no_face_detected")
+    if lighting_score is not None and lighting_score < 0.28:
+        risk += 0.2
+        flags.append("poor_lighting")
+    if input_type == "photo":
+        risk += 0.1
+        flags.append("single_frame_capture")
+    if input_type == "video" and face_ratio < 0.22:
+        risk += 0.2
+        flags.append("inconsistent_face_presence")
+    if video_confidence < 0.5:
+        risk += 0.15
+        flags.append("low_model_confidence")
+
+    spoof_risk = max(0.0, min(1.0, risk))
+    return {
+        "video_input_type": input_type,
+        "video_integrity_score": round(1.0 - spoof_risk, 4),
+        "video_spoof_risk": round(spoof_risk, 4),
+        "video_integrity_flags": flags,
+    }
+
+
+def _infer_face_emotion(face_bgr):
+    """Infer emotion from a face crop using HF image model. Returns (label, score) or (None, None)."""
+    settings = get_settings()
+    if not settings.huggingface_api_key:
+        return None, None
+
+    try:
+        import cv2
+        ok, encoded = cv2.imencode('.jpg', face_bgr)
+        if not ok:
+            return None, None
+
+        resp = httpx.post(
+            _HF_FACE_URL,
+            headers={
+                "Authorization": f"Bearer {settings.huggingface_api_key}",
+                "Content-Type": "image/jpeg",
+            },
+            content=encoded.tobytes(),
+            timeout=30.0,
+        )
+        if resp.status_code != 200:
+            return None, None
+
+        data = resp.json()
+        rows = data[0] if data and isinstance(data[0], list) else data
+        if not rows or not isinstance(rows, list):
+            return None, None
+        top = max(rows, key=lambda x: x.get("score", 0.0))
+        label = str(top.get("label", "")).lower().strip()
+        mapped = _EMOTION_MAP.get(label, label or None)
+        return mapped, float(top.get("score", 0.0) or 0.0)
+    except Exception:
+        return None, None
 
 
 def _analyse_image(file_path) -> dict:
@@ -32,12 +117,36 @@ def _analyse_image(file_path) -> dict:
         lighting_score = round(min(1.0, brightness / 0.67), 3)
 
         face_detected = 0
+        video_emotion = None
+        video_confidence = None
         cascade = _get_face_cascade()
         if cascade is not None:
             faces = cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=4, minSize=(60, 60)
             )
             face_detected = 1 if len(faces) > 0 else 0
+            if len(faces) > 0:
+                x, y, w, h = max(faces, key=lambda box: box[2] * box[3])
+                face_crop = img[y:y + h, x:x + w]
+                video_emotion, video_confidence = _infer_face_emotion(face_crop)
+
+        if not video_emotion:
+            # Non-model fallback heuristic when no face emotion was inferred.
+            if face_detected == 0:
+                video_emotion = "fear"
+            elif lighting_score < 0.32:
+                video_emotion = "sadness"
+            else:
+                video_emotion = "neutral"
+            video_confidence = 0.48
+
+        integrity = _visual_integrity(
+            input_type="photo",
+            face_detected=face_detected,
+            lighting_score=lighting_score,
+            face_ratio=float(face_detected),
+            video_confidence=float(video_confidence or 0.0),
+        )
 
         return {
             "duration_seconds": 0.0,
@@ -47,14 +156,17 @@ def _analyse_image(file_path) -> dict:
             "face_detected": face_detected,
             "face_ratio": float(face_detected),
             "lighting_score": lighting_score,
-            "video_emotion": "neutral",
+            "video_emotion": video_emotion,
+            "video_emotion_confidence": round(float(video_confidence or 0.0), 4),
+            **integrity,
         }
     except Exception as e:
         return {
             "duration_seconds": None, "fps": None,
             "resolution_width": None, "resolution_height": None,
             "face_detected": 0, "face_ratio": 0.0,
-            "lighting_score": None, "video_emotion": "neutral",
+            "lighting_score": None, "video_emotion": None,
+            "video_emotion_confidence": 0.0,
             "error": str(e),
         }
 
@@ -102,6 +214,8 @@ def analyse_video(file_path) -> dict:
         indices = list(range(0, total_frames, step))[:sample_count]
 
         face_detections = 0
+        inferred_emotions = []
+        inferred_scores = []
         brightness_values = []
         cascade = _get_face_cascade()
 
@@ -123,6 +237,12 @@ def analyse_video(file_path) -> dict:
                 )
                 if len(faces) > 0:
                     face_detections += 1
+                    x, y, w, h = max(faces, key=lambda box: box[2] * box[3])
+                    face_crop = frame[y:y + h, x:x + w]
+                    emotion, confidence = _infer_face_emotion(face_crop)
+                    if emotion:
+                        inferred_emotions.append(emotion)
+                        inferred_scores.append(float(confidence or 0.0))
 
         cap.release()
 
@@ -130,6 +250,27 @@ def analyse_video(file_path) -> dict:
         avg_lighting = float(np.mean(brightness_values)) if brightness_values else 0.5
         # Normalise: perfect brightness ~170/255 ≈ 0.67; scale so 0.67 maps to 1.0
         lighting_score = round(min(1.0, avg_lighting / 0.67), 3)
+
+        if inferred_emotions:
+            # Majority vote across sampled frames.
+            video_emotion = max(set(inferred_emotions), key=inferred_emotions.count)
+            video_confidence = sum(inferred_scores) / max(1, len(inferred_scores))
+        else:
+            if face_ratio < 0.2:
+                video_emotion = "fear"
+            elif lighting_score < 0.32:
+                video_emotion = "sadness"
+            else:
+                video_emotion = "neutral"
+            video_confidence = 0.46
+
+        integrity = _visual_integrity(
+            input_type="video",
+            face_detected=int(face_ratio > 0.3),
+            lighting_score=lighting_score,
+            face_ratio=face_ratio,
+            video_confidence=float(video_confidence or 0.0),
+        )
 
         return {
             "duration_seconds": round(duration, 2),
@@ -139,7 +280,9 @@ def analyse_video(file_path) -> dict:
             "face_detected":    int(face_ratio > 0.3),
             "face_ratio":       round(face_ratio, 3),
             "lighting_score":   lighting_score,
-            "video_emotion":    "neutral",
+            "video_emotion":    video_emotion,
+            "video_emotion_confidence": round(float(video_confidence or 0.0), 4),
+            **integrity,
         }
 
     except Exception as e:
@@ -147,6 +290,7 @@ def analyse_video(file_path) -> dict:
             "duration_seconds": None, "fps": None,
             "resolution_width": None, "resolution_height": None,
             "face_detected": 0, "face_ratio": 0.0,
-            "lighting_score": None, "video_emotion": "neutral",
+            "lighting_score": None, "video_emotion": None,
+            "video_emotion_confidence": 0.0,
             "error": str(e),
         }

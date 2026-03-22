@@ -1,5 +1,30 @@
-__pycache__
-venv
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+
 .env
 .env.example
+
+
+# Model / transformer caches
+backend/.mindsentry_cache/
+.cache/
+sentence_transformers/
+
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+
+
+#uploads
 uploads

@@ -23,6 +23,7 @@ from app.api.video_analysis import router as video_router
 from app.api.questionnaires import router as questionnaires_router
 from app.api.analysis import router as analysis_router
 from app.api.history import router as history_router
+from app.api.chatbot_agent import router as chatbot_agent_router
 
 settings = get_settings()
 
@@ -65,6 +66,7 @@ app.include_router(video_router)          # /video/*
 app.include_router(questionnaires_router) # /questionnaires/*
 app.include_router(analysis_router)       # /analysis/*
 app.include_router(history_router)        # /history/*
+app.include_router(chatbot_agent_router)  # /api/v2/chat-agent/*
 
 
 @app.get("/")

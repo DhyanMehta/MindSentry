@@ -9,12 +9,17 @@ Train the NN:
 """
 from __future__ import annotations
 from typing import Optional, Dict
-from app.services.fusion_nn import build_feature_vector, predict as nn_predict
+from app.services.fusion_nn import (
+    build_feature_vector,
+    explain_dominant_features,
+    feature_vector_to_dict,
+    predict as nn_predict,
+    MODEL_NAME,
+)
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, v))
-
 
 # Modality weights for the heuristic fallback
 _W = {"text": 0.35, "audio": 0.25, "video": 0.15, "questionnaire": 0.25}
@@ -130,10 +135,52 @@ def compute_scores(
         mood     = h["mood_score"]
         confidence = h["confidence_score"]
 
+    text_conf = None
+    if text_features:
+        text_conf = text_features.get("text_emotion_confidence", text_features.get("emotion_score"))
+    audio_conf = audio_features.get("audio_emotion_confidence") if audio_features else None
+    video_conf = video_features.get("video_emotion_confidence") if video_features else None
+
+    text_integrity = float((text_features or {}).get("text_integrity_score", 1.0) or 1.0)
+    audio_integrity = float((audio_features or {}).get("audio_integrity_score", 1.0) or 1.0)
+    video_integrity = float((video_features or {}).get("video_integrity_score", 1.0) or 1.0)
+    text_spoof = float((text_features or {}).get("text_spoof_risk", 0.0) or 0.0)
+    audio_spoof = float((audio_features or {}).get("audio_spoof_risk", 0.0) or 0.0)
+    video_spoof = float((video_features or {}).get("video_spoof_risk", 0.0) or 0.0)
+
+    integrity_parts = []
+    if text_features:
+        integrity_parts.append((text_integrity, 0.4))
+    if audio_features:
+        integrity_parts.append((audio_integrity, 0.35))
+    if video_features:
+        integrity_parts.append((video_integrity, 0.25))
+    if integrity_parts:
+        denom = sum(w for _, w in integrity_parts)
+        overall_integrity = sum(v * w for v, w in integrity_parts) / denom
+    else:
+        overall_integrity = 1.0
+
+    overall_spoof_risk = _clamp(1.0 - overall_integrity)
+    confidence = _clamp(confidence - overall_spoof_risk * 0.25)
+
     distress     = _clamp((stress + low_mood) / 2.0)
     risk         = "high" if crisis >= 0.7 else ("medium" if crisis >= 0.4 else "low")
     wellness_f   = int(distress >= 0.5)
     crisis_f     = int(crisis   >= 0.65)
+
+    output_scores = {
+        "stress_score": round(stress, 4),
+        "low_mood_score": round(low_mood, 4),
+        "burnout_score": round(burnout, 4),
+        "social_withdrawal_score": round(soc_w, 4),
+        "crisis_score": round(crisis, 4),
+    }
+    model_inputs = {
+        k: round(float(v), 6)
+        for k, v in feature_vector_to_dict(feat_vec).items()
+    }
+    dominance = explain_dominant_features(feat_vec, output_scores)
 
     return {
         "stress_score":               round(stress,   4),
@@ -148,7 +195,25 @@ def compute_scores(
         "support_level":              risk,
         "final_risk_level":           risk,
         "confidence_score":           round(confidence, 4),
+        "overall_integrity_score":    round(overall_integrity, 4),
+        "overall_spoof_risk":         round(overall_spoof_risk, 4),
+        "text_integrity_score":       round(text_integrity, 4) if text_features else None,
+        "audio_integrity_score":      round(audio_integrity, 4) if audio_features else None,
+        "video_integrity_score":      round(video_integrity, 4) if video_features else None,
+        "text_spoof_risk":            round(text_spoof, 4) if text_features else None,
+        "audio_spoof_risk":           round(audio_spoof, 4) if audio_features else None,
+        "video_spoof_risk":           round(video_spoof, 4) if video_features else None,
+        "text_confidence":            round(float(text_conf), 4) if text_conf is not None else None,
+        "audio_confidence":           round(float(audio_conf), 4) if audio_conf is not None else None,
+        "video_confidence":           round(float(video_conf), 4) if video_conf is not None else None,
         "scoring_source":             source,
+        "model_name":                 MODEL_NAME,
+        "model_input_features":       model_inputs,
+        "model_output_scores":        output_scores,
+        "dominant_features":          dominance,
+        "text_features":              text_features if text_features else None,
+        "audio_features":             audio_features if audio_features else None,
+        "video_features":             video_features if video_features else None,
         "text_emotion":  text_features.get("emotion")              if text_features  else None,
         "audio_emotion": audio_features.get("audio_emotion")       if audio_features else None,
         "video_emotion": video_features.get("video_emotion") if video_features else None,
@@ -163,5 +228,16 @@ def _default_scores() -> Dict:
         "wellness_flag": 0, "crisis_flag": 0,
         "support_level": "low", "final_risk_level": "low",
         "confidence_score": 0.0, "scoring_source": "default",
+        "overall_integrity_score": 1.0, "overall_spoof_risk": 0.0,
+        "text_integrity_score": None, "audio_integrity_score": None, "video_integrity_score": None,
+        "text_spoof_risk": None, "audio_spoof_risk": None, "video_spoof_risk": None,
+        "text_confidence": None, "audio_confidence": None, "video_confidence": None,
+        "model_name": MODEL_NAME,
+        "model_input_features": {},
+        "model_output_scores": {},
+        "dominant_features": {},
+        "text_features": None,
+        "audio_features": None,
+        "video_features": None,
         "text_emotion": None, "audio_emotion": None, "video_emotion": None,
     }

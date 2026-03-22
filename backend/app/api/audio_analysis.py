@@ -62,7 +62,7 @@ async def upload_audio(
         feature_namespace="acoustic+emotion",
         feature_json=json.dumps(result),
         extractor_name="groq-whisper+librosa",
-        extractor_version="1.0",
+        extractor_version="1.1",
     )
     session.add(feature)
 

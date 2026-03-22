@@ -11,7 +11,7 @@ import { SupportScreen } from '../screens/SupportScreen';
 import { TrendsScreen } from '../screens/TrendsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
-import { CounselorChatScreen } from '../screens/CounselorChatScreen';
+import ChatBotScreen from '../screens/ChatBotScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { SignupScreen } from '../screens/SignupScreen';
 import { CaptureScreen } from '../screens/CaptureScreen';
@@ -137,8 +137,8 @@ export const AppNavigator = () => {
               component={MainTabNavigator}
             />
             <Stack.Screen
-              name="CounselorChat"
-              component={CounselorChatScreen}
+              name="ChatBot"
+              component={ChatBotScreen}
               options={{
                 cardStyle: { backgroundColor: colors.background },
                 gestureEnabled: false,

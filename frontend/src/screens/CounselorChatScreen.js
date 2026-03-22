@@ -6,7 +6,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Animated, { FadeIn, Easing } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors } from '../theme/colors';
 import { ApiService } from '../services/api';
@@ -16,7 +16,7 @@ import { ErrorBox } from '../components/ErrorBox';
 const INITIAL_MESSAGES = [
   {
     id: '1',
-    text: "Hello! I'm your AI Counselor. I analyze your messages using emotion AI to give you real, personalized support. How are you feeling today?",
+    text: "Hello! I'm AarogyaAI. I analyze your messages using emotion AI to give you real, personalized support. How are you feeling today?",
     sender: 'system',
     timestamp: new Date().toISOString(),
   },
@@ -64,7 +64,7 @@ export const CounselorChatScreen = () => {
 
     try {
       // Create a fresh assessment for this message
-      const assessment = await ApiService.createAssessment('clinician_review', 'AI counselor session');
+      const assessment = await ApiService.createAssessment('clinician_review', 'AarogyaAI session');
 
       // Submit the user's message and run analysis
       await ApiService.submitText(assessment.id, text);
@@ -132,7 +132,7 @@ export const CounselorChatScreen = () => {
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>AI Counselor</Text>
+          <Text style={styles.headerTitle}>AarogyaAI</Text>
           <View style={styles.statusRow}>
             <View style={[styles.onlineDot, isTyping && { backgroundColor: colors.warning || '#F59E0B' }]} />
             <Text style={styles.statusText}>{isTyping ? 'Analyzing...' : 'Online'}</Text>

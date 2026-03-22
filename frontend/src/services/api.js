@@ -1,7 +1,5 @@
 import { AuthService } from './authService';
-import { API_CONFIG } from '../config/api.config';
-
-const API_BASE_URL = API_CONFIG.BASE_URL;
+import { requestJson, requestFormData } from './httpClient';
 
 /**
  * Makes an authenticated JSON API request
@@ -19,32 +17,23 @@ const makeRequest = async (endpoint, options = {}) => {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const { data, status } = await requestJson(endpoint, {
       ...options,
       headers,
     });
 
-    if (response.status === 401 && accessToken) {
+    if (status === 401 && accessToken) {
       await AuthService.logout();
       throw new Error('Session expired. Please log in again.');
     }
 
-    if (response.status === 204) {
-      return null; // No content
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const detail = errorData.detail;
-      if (Array.isArray(detail)) {
-        throw new Error(detail[0]?.msg || `API Error: ${response.status}`);
-      }
-      throw new Error(detail || `API Error: ${response.status}`);
-    }
-
-    return await response.json();
+    return data;
   } catch (error) {
-    console.error(`API Request failed [${endpoint}]:`, error.message);
+    if (error?.status === 401 && accessToken) {
+      await AuthService.logout();
+      throw new Error('Session expired. Please log in again.');
+    }
+
     throw error;
   }
 };
@@ -62,25 +51,23 @@ const makeFormRequest = async (endpoint, formData) => {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const { data, status } = await requestFormData(endpoint, formData, {
       method: 'POST',
       headers,
-      body: formData,
     });
 
-    if (response.status === 401) {
+    if (status === 401) {
       await AuthService.logout();
       throw new Error('Session expired. Please log in again.');
     }
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Upload Error: ${response.status}`);
+    return data;
+  } catch (error) {
+    if (error?.status === 401) {
+      await AuthService.logout();
+      throw new Error('Session expired. Please log in again.');
     }
 
-    return await response.json();
-  } catch (error) {
-    console.error(`Form Request failed [${endpoint}]:`, error.message);
     throw error;
   }
 };
@@ -135,6 +122,8 @@ export const ApiService = {
 
   getAnalysisResult: (assessmentId) => makeRequest(`/analysis/result/${assessmentId}`),
 
+  getInferenceTracking: (assessmentId) => makeRequest(`/analysis/inference/${assessmentId}`),
+
   getRiskScore: (assessmentId) => makeRequest(`/analysis/risk/${assessmentId}`),
 
   getSafetyFlags: (assessmentId) => makeRequest(`/analysis/safety/${assessmentId}`),
@@ -165,3 +154,39 @@ export const ApiService = {
   updateUserProfile: (updates) =>
     makeRequest('/auth/me', { method: 'PUT', body: JSON.stringify(updates) }),
 };
+
+/**
+ * Generic HTTP methods for API requests (used by ChatAgentService and other services)
+ */
+export const post = (endpoint, body, options = {}) =>
+  makeRequest(endpoint, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    ...options,
+  });
+
+export const get = (endpoint, options = {}) =>
+  makeRequest(endpoint, {
+    method: 'GET',
+    ...options,
+  });
+
+export const put = (endpoint, body, options = {}) =>
+  makeRequest(endpoint, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+    ...options,
+  });
+
+export const patch = (endpoint, body, options = {}) =>
+  makeRequest(endpoint, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+    ...options,
+  });
+
+export const deleteRequest = (endpoint, options = {}) =>
+  makeRequest(endpoint, {
+    method: 'DELETE',
+    ...options,
+  });

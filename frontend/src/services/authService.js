@@ -1,8 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-import { API_CONFIG } from '../config/api.config';
-
-// Backend API URL - Automatically configured for Expo Go and emulators
-const API_BASE_URL = API_CONFIG.BASE_URL;
+import { requestJson } from './httpClient';
 
 /**
  * AuthService handles all authentication-related operations including login, signup, logout,
@@ -22,26 +19,12 @@ export const AuthService = {
    */
   signup: async (name, email, password, confirmPassword) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+      const { data } = await requestJson('/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, confirmPassword }),
       });
 
-      if (!response.ok) {
-        const errBody = await response.json().catch(() => ({}));
-        const errorDetail = errBody.detail;
-        
-        // Handle validation errors
-        if (Array.isArray(errorDetail)) {
-          const errorMsg = errorDetail[0]?.msg || 'Validation error';
-          throw new Error(errorMsg);
-        }
-        
-        throw new Error(errorDetail || 'Signup failed');
-      }
-
-      const data = await response.json();
       // Backend returns: { user: {id, email}, access_token, token_type }
       await AuthService.storeTokens(data.access_token);
       await AuthService.storeUserData(data.user);
@@ -64,26 +47,12 @@ export const AuthService = {
    */
   login: async (email, password) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const { data } = await requestJson('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
-      if (!response.ok) {
-        const errBody = await response.json().catch(() => ({}));
-        const errorDetail = errBody.detail;
-        
-        // Handle validation errors
-        if (Array.isArray(errorDetail)) {
-          const errorMsg = errorDetail[0]?.msg || 'Validation error';
-          throw new Error(errorMsg);
-        }
-        
-        throw new Error(errorDetail || 'Login failed');
-      }
-
-      const data = await response.json();
       // Backend returns: { user: {id, email}, access_token, token_type }
       await AuthService.storeTokens(data.access_token);
       await AuthService.storeUserData(data.user);
@@ -110,7 +79,7 @@ export const AuthService = {
         throw new Error('No access token available');
       }
 
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      const { data: userData } = await requestJson('/auth/me', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -118,11 +87,6 @@ export const AuthService = {
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch user profile');
-      }
-
-      const userData = await response.json();
       // Backend returns: { id, email }
       await AuthService.storeUserData(userData);
       

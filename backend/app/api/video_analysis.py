@@ -58,10 +58,10 @@ async def upload_video(
     feature = ExtractedFeature(
         assessment_id=assessment_id,
         modality_type="video",
-        feature_namespace="face+lighting",
+        feature_namespace="visual_emotion+integrity",
         feature_json=json.dumps(result),
-        extractor_name="mediapipe+opencv",
-        extractor_version="1.0",
+        extractor_name="opencv+hf_face_emotion",
+        extractor_version="1.1",
     )
     session.add(feature)
 

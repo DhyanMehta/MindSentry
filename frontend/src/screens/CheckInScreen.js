@@ -118,6 +118,12 @@ export const CheckInScreen = () => {
   };
 
   const computeSessionScore = (analysisResult) => {
+    if (analysisResult?.wellness_score != null) {
+      const parsed = parseFloat(String(analysisResult.wellness_score).trim());
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
     const stress = analysisResult?.stress_score ?? 0.5;
     const moodScore = analysisResult?.mood_score ?? 0.5;
     return Math.round(((1 - stress) * 0.45 + moodScore * 0.55) * 100);
@@ -224,7 +230,7 @@ export const CheckInScreen = () => {
       }
       setProcessingStage('Running AI analysis...');
 
-      const { result: analysisResult, risk, recommendations: recs } =
+      const { result: analysisResult, risk, recommendations: recs, inference } =
         await AssessmentService.performCheckIn(mood, checkInText, {
           audioUri,
           photoUri: capturedPhoto,
@@ -233,7 +239,12 @@ export const CheckInScreen = () => {
       setProcessingStage('Preparing your results...');
       await new Promise((r) => setTimeout(r, 250));
 
-      setResult(analysisResult);
+      const mergedResult = {
+        ...analysisResult,
+        inference_tracking: analysisResult?.inference_tracking || inference?.tracking || null,
+      };
+
+      setResult(mergedResult);
       setRiskScore(risk || null);
       setRecommendations(Array.isArray(recs) ? recs : []);
       setPhase('success');
@@ -322,6 +333,7 @@ export const CheckInScreen = () => {
   }
 
   if (phase === 'success' && result) {
+    const formatConfidence = (value) => (value != null ? `${Math.round(value * 100)}%` : 'N/A');
     const riskLevel = riskScore?.final_risk_level || deriveRiskLevel(result);
     const riskColor = RISK_COLORS[riskLevel] || RISK_COLORS.low;
     const stressScore = result.stress_score != null ? Math.round(result.stress_score * 100) : '--';
@@ -331,6 +343,14 @@ export const CheckInScreen = () => {
     const sessionScore = computeSessionScore(result);
     const scoreReasons = buildScoreReasons(result);
     const isLowScore = sessionScore < LOW_SCORE_THRESHOLD;
+    const modelSource = result?.scoring_source || (result?.inference_tracking?.scoring_source ?? 'unknown');
+    const modelName = result?.model_name || (result?.inference_tracking?.model_name ?? 'unknown');
+    const dominanceMap = result?.dominant_features || result?.inference_tracking?.dominant_features || {};
+    const dominantRows = Object.entries(dominanceMap).map(([scoreKey, meta]) => ({
+      scoreKey,
+      feature: meta?.dominant_feature || 'N/A',
+      share: meta?.dominant_share_pct,
+    }));
     const riskMetrics = [
       { label: 'Stress', value: riskScore?.stress_score },
       { label: 'Low Mood', value: riskScore?.low_mood_score },
@@ -339,9 +359,24 @@ export const CheckInScreen = () => {
       { label: 'Crisis', value: riskScore?.crisis_score },
     ];
     const modelCards = [
-      { title: 'Text-based Analysis', emotion: result.text_emotion || 'Not available', icon: 'document-text-outline' },
-      { title: 'Audio-based Analysis', emotion: result.audio_emotion || 'Not available', icon: 'mic-outline' },
-      { title: 'Video-based Analysis', emotion: result.video_emotion || 'Not available', icon: 'videocam-outline' },
+      {
+        title: 'Text-based Analysis',
+        emotion: result.text_emotion || 'Not available',
+        confidence: formatConfidence(result.text_confidence),
+        icon: 'document-text-outline',
+      },
+      {
+        title: 'Audio-based Analysis',
+        emotion: result.audio_emotion || 'Not available',
+        confidence: formatConfidence(result.audio_confidence),
+        icon: 'mic-outline',
+      },
+      {
+        title: 'Video-based Analysis',
+        emotion: result.video_emotion || 'Not available',
+        confidence: formatConfidence(result.video_confidence),
+        icon: 'videocam-outline',
+      },
     ];
 
     return (
@@ -393,6 +428,7 @@ export const CheckInScreen = () => {
               <View style={styles.modelContent}>
                 <Text style={styles.modelTitle}>{item.title}</Text>
                 <Text style={styles.modelValue}>{item.emotion}</Text>
+                <Text style={styles.modelConfidence}>Confidence: {item.confidence}</Text>
               </View>
             </View>
           ))}
@@ -422,6 +458,7 @@ export const CheckInScreen = () => {
             </View>
             <Text style={styles.cardLabel}>Why this score</Text>
           </View>
+          <Text style={styles.reasonText}>Model: {modelName} ({modelSource})</Text>
           {scoreReasons.map((reason) => (
             <View key={reason} style={styles.reasonRow}>
               <View style={styles.bulletPoint} />
@@ -429,6 +466,26 @@ export const CheckInScreen = () => {
             </View>
           ))}
         </Animated.View>
+
+        {dominantRows.length > 0 && (
+          <Animated.View>
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="git-compare-outline" size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.cardLabel}>Dominant Features by Score</Text>
+            </View>
+            {dominantRows.map((item) => (
+              <View key={item.scoreKey} style={styles.reasonRow}>
+                <View style={styles.bulletPoint} />
+                <Text style={styles.reasonText}>
+                  {item.scoreKey}: {item.feature}
+                  {item.share != null ? ` (${item.share}% influence)` : ''}
+                </Text>
+              </View>
+            ))}
+          </Animated.View>
+        )}
 
         {topRec && (
           <Animated.View>
@@ -787,6 +844,7 @@ const styles = StyleSheet.create({
   modelContent: { flex: 1 },
   modelTitle: { fontSize: 13, color: colors.textSecondary, marginBottom: 2 },
   modelValue: { fontSize: 14, color: colors.textPrimary, fontWeight: '700', textTransform: 'capitalize' },
+  modelConfidence: { fontSize: 12, color: colors.textSecondary, marginTop: 3 },
 
   riskGrid: {
     flexDirection: 'row',

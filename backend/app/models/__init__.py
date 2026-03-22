@@ -28,6 +28,14 @@ from app.models.analysis_result import AnalysisResult  # noqa: F401
 from app.models.recommendation import Recommendation  # noqa: F401
 from app.models.safety_flag import SafetyFlag  # noqa: F401
 
+# ── Chat & Agent system ───────────────────────────────────────
+from app.models.chat_session import ChatSession  # noqa: F401
+from app.models.chat_message import ChatMessage  # noqa: F401
+from app.models.agent_task import AgentTask  # noqa: F401
+from app.models.health_clinic import HealthClinic  # noqa: F401
+from app.models.appointment import Appointment  # noqa: F401
+from app.models.user_wellness_context import UserWellnessContext  # noqa: F401
+
 __all__ = [
     "User",
     "UserProfile", "Consent",
@@ -38,4 +46,6 @@ __all__ = [
     "PassiveBehaviorMetric",
     "ExtractedFeature", "ModelRegistry", "InferenceRun",
     "RiskScore", "AnalysisResult", "Recommendation", "SafetyFlag",
+    "ChatSession", "ChatMessage", "AgentTask",
+    "HealthClinic", "Appointment", "UserWellnessContext",
 ]
