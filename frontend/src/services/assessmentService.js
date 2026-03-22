@@ -33,7 +33,7 @@ export const AssessmentService = {
 
   // ── Full check-in flow (mood + questions + optional media → analysis) ───────
   performCheckIn: async (mood, checkInText, options = {}) => {
-    const { audioUri = null, photoUri = null } = options;
+    const { audioUri = null, photoUri = null, videoUri = null } = options;
 
     // Step 1: Create assessment
     const assessment = await ApiService.createAssessment('checkin', `Mood: ${mood}`);
@@ -46,7 +46,9 @@ export const AssessmentService = {
     if (audioUri) {
       await ApiService.uploadAudio(assessment.id, audioUri);
     }
-    if (photoUri) {
+    if (videoUri) {
+      await ApiService.uploadVideo(assessment.id, videoUri);
+    } else if (photoUri) {
       await ApiService.uploadPhoto(assessment.id, photoUri);
     }
 

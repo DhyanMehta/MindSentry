@@ -114,6 +114,13 @@ export const ApiService = {
     return makeFormRequest(`/video/upload/${assessmentId}`, formData);
   },
 
+  uploadVideo: async (assessmentId, videoUri) => {
+    const formData = new FormData();
+    const filename = videoUri.split('/').pop() || 'capture.mp4';
+    formData.append('file', { uri: videoUri, name: filename, type: 'video/mp4' });
+    return makeFormRequest(`/video/upload/${assessmentId}`, formData);
+  },
+
   getVideoEntry: (assessmentId) => makeRequest(`/video/${assessmentId}`),
 
   // ── Analysis ──────────────────────────────────────────────────────────────────
@@ -130,6 +137,8 @@ export const ApiService = {
 
   getRecommendations: (assessmentId) =>
     makeRequest(`/analysis/recommendations/${assessmentId}`),
+
+  getCheckInPrompts: () => makeRequest('/analysis/checkin-prompts'),
 
   // ── History ───────────────────────────────────────────────────────────────────
   getHistoryAssessments: (limit = 20, offset = 0) =>

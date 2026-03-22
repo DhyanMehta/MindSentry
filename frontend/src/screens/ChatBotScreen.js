@@ -1,7 +1,7 @@
 /**
  * ChatBotScreen - AarogyaAI chat with RAG context awareness
  */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,13 +15,15 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { useChatAgent } from '../hooks/useChatAgent';
 import { ErrorBox } from '../components/ErrorBox';
 
 const ChatBotScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const {
     messages,
     loading,
@@ -32,8 +34,40 @@ const ChatBotScreen = () => {
     setError,
     clearMessages,
   } = useChatAgent();
+  const hasInitializedWithContextRef = useRef(false);
 
   const [inputText, setInputText] = useState('');
+
+  const wellnessContext = route?.params?.wellnessContext;
+
+  useEffect(() => {
+    const runContextKickoff = async () => {
+      if (!wellnessContext || hasInitializedWithContextRef.current) return;
+
+      hasInitializedWithContextRef.current = true;
+
+      const contextPrompt = [
+        'You are given the latest wellness check-in context. Reply in exactly two sections before any normal chat:',
+        '1) Answer First: one concise practical recommendation.',
+        '2) Your Thought: brief reasoning based on the data.',
+        'Then ask one follow-up question.',
+        '',
+        `Wellness score: ${wellnessContext?.wellnessScore ?? '--'}`,
+        `Risk level: ${wellnessContext?.riskLevel ?? '--'}`,
+        `Mood score: ${wellnessContext?.moodScorePercent ?? '--'}%`,
+        `Stress score: ${wellnessContext?.stressScorePercent ?? '--'}%`,
+        `Text emotion: ${wellnessContext?.textEmotion ?? 'Unknown'}`,
+        `Voice emotion: ${wellnessContext?.audioEmotion ?? 'Unknown'}`,
+        `Video emotion: ${wellnessContext?.videoEmotion ?? 'Unknown'}`,
+        `Top recommendations: ${JSON.stringify(wellnessContext?.topRecommendations || [])}`,
+      ].join('\n');
+
+      await sendMessage(contextPrompt);
+      navigation.setParams({ wellnessContext: null });
+    };
+
+    runContextKickoff();
+  }, [wellnessContext, navigation, sendMessage]);
 
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
@@ -130,6 +164,13 @@ const ChatBotScreen = () => {
         <Text style={styles.headerTitle}>AarogyaAI</Text>
         <Text style={styles.headerSubtitle}>Your AI wellness companion</Text>
       </View>
+
+      {!!wellnessContext && (
+        <View style={styles.contextReadyBanner}>
+          <Ionicons name="sparkles-outline" size={14} color="#4338CA" />
+          <Text style={styles.contextReadyText}>Loaded your latest wellness context for first response.</Text>
+        </View>
+      )}
 
       {error && (
         <ErrorBox
@@ -235,6 +276,21 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: '#666',
+  },
+  contextReadyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EEF2FF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#C7D2FE',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  contextReadyText: {
+    color: '#4338CA',
+    fontSize: 12,
+    fontWeight: '600',
   },
   chatContainer: {
     flex: 1,

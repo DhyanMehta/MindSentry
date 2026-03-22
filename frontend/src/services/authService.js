@@ -28,7 +28,7 @@ export const AuthService = {
       // Backend returns: { user: {id, email}, access_token, token_type }
       await AuthService.storeTokens(data.access_token);
       await AuthService.storeUserData(data.user);
-      
+
       return {
         user: data.user,
         accessToken: data.access_token,
@@ -56,7 +56,7 @@ export const AuthService = {
       // Backend returns: { user: {id, email}, access_token, token_type }
       await AuthService.storeTokens(data.access_token);
       await AuthService.storeUserData(data.user);
-      
+
       return {
         user: data.user,
         accessToken: data.access_token,
@@ -74,7 +74,7 @@ export const AuthService = {
   getCurrentUser: async () => {
     try {
       const accessToken = await AuthService.getAccessToken();
-      
+
       if (!accessToken) {
         throw new Error('No access token available');
       }
@@ -89,7 +89,7 @@ export const AuthService = {
 
       // Backend returns: { id, email }
       await AuthService.storeUserData(userData);
-      
+
       return userData;
     } catch (error) {
       console.error('Get current user error:', error);

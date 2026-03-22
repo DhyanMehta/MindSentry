@@ -55,12 +55,12 @@ export const useChatAgent = () => {
 
     try {
       // Add user message to UI immediately
-        appendMessage({
+      appendMessage({
         id: `msg-${Date.now()}`,
         role: 'user',
         content: messageText,
         createdAt: new Date(),
-        });
+      });
 
       // Send with agent capability
       const response = await ChatAgentService.sendChatWithAgent(messageText, sessionId);
@@ -71,14 +71,14 @@ export const useChatAgent = () => {
       }
 
       // Add assistant response
-        appendMessage({
+      appendMessage({
         id: response.message_id,
         role: 'assistant',
         content: response.chatbot_response,
         contextUsed: response.context_used,
         retrievedContext: response.retrieved_context || [],
         createdAt: new Date(),
-        });
+      });
 
       // Store agent result if triggered
       if (response.agent_triggered) {
@@ -86,18 +86,18 @@ export const useChatAgent = () => {
 
         // Add agent result as system message
         if (response.agent_result?.result?.success) {
-            const resultPayload = response.agent_result.result;
-            const agentSummary = resultPayload?.clinics
-              ? formatClinicsSummary(resultPayload)
-              : `Agent Action: ${resultPayload.message}`;
+          const resultPayload = response.agent_result.result;
+          const agentSummary = resultPayload?.clinics
+            ? formatClinicsSummary(resultPayload)
+            : `Agent Action: ${resultPayload.message}`;
 
-            appendMessage({
+          appendMessage({
             id: `agent-${response.agent_result.task_id}`,
             role: 'system',
             content: agentSummary,
-              agentData: resultPayload,
+            agentData: resultPayload,
             createdAt: new Date(),
-            });
+          });
         }
       }
     } catch (err) {
@@ -120,13 +120,13 @@ export const useChatAgent = () => {
       setAgentResult(response);
 
       if (response.result?.success) {
-            appendMessage({
+        appendMessage({
           id: `clinics-${response.task_id}`,
           role: 'system',
-              content: formatClinicsSummary(response.result),
+          content: formatClinicsSummary(response.result),
           agentData: response.result,
           createdAt: new Date(),
-            });
+        });
       } else {
         setError(response.error || 'Failed to find clinics');
       }
@@ -157,13 +157,13 @@ export const useChatAgent = () => {
 
       if (response.result?.success) {
         const appointmentInfo = response.result.data;
-            appendMessage({
+        appendMessage({
           id: `appointment-${response.task_id}`,
           role: 'system',
           content: `Appointment booked at ${appointmentInfo.clinic_name} on ${appointmentInfo.appointment_date}`,
           agentData: appointmentInfo,
           createdAt: new Date(),
-            });
+        });
       } else {
         setError(response.error || 'Failed to book appointment');
       }
@@ -190,13 +190,13 @@ export const useChatAgent = () => {
 
       if (response.result?.success) {
         const emergencyInfo = response.result.data;
-            appendMessage({
+        appendMessage({
           id: `ambulance-${response.task_id}`,
           role: 'system',
           content: `🚑 Emergency services dispatched. ${emergencyInfo.message}`,
           agentData: emergencyInfo,
           createdAt: new Date(),
-            });
+        });
       } else {
         setError(response.error || 'Failed to call ambulance');
       }

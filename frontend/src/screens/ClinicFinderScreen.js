@@ -64,7 +64,7 @@ const ClinicFinderScreen = ({ navigation }) => {
       Alert.alert('No Phone Number', 'This clinic does not have a phone number listed.');
       return;
     }
-    
+
     const phoneUrl = `tel:${phone.replace(/\D/g, '')}`;
     try {
       const canOpen = await Linking.canOpenURL(phoneUrl);
@@ -81,7 +81,7 @@ const ClinicFinderScreen = ({ navigation }) => {
   const formatDateTimeInput = (input) => {
     // Remove non-numeric characters except hyphens, colons, and T
     const cleaned = input.replace(/[^\d\-T:]/g, '');
-    
+
     // Expected format: YYYY-MM-DDTHH:MM:SS
     if (cleaned.length <= 4) return cleaned; // YYYY
     if (cleaned.length <= 7) return cleaned.slice(0, 4) + '-' + cleaned.slice(4); // YYYY-MM
@@ -89,7 +89,7 @@ const ClinicFinderScreen = ({ navigation }) => {
     if (cleaned.length <= 13) return cleaned.slice(0, 10) + 'T' + cleaned.slice(10); // YYYY-MM-DDTHH
     if (cleaned.length <= 16) return cleaned.slice(0, 13) + ':' + cleaned.slice(13); // YYYY-MM-DDTHH:MM
     if (cleaned.length <= 19) return cleaned.slice(0, 16) + ':' + cleaned.slice(16); // YYYY-MM-DDTHH:MM:SS
-    
+
     return cleaned.slice(0, 19);
   };
 

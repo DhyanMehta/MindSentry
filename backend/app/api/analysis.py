@@ -13,6 +13,7 @@ from typing import List
 from datetime import datetime, timezone
 import hashlib
 import time
+import random
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 import json
@@ -35,8 +36,76 @@ from app.schemas.analysis import AnalysisResultResponse, RiskScoreResponse
 from app.schemas.recommendation import RecommendationResponse, SafetyFlagResponse
 from app.services.scoring_service import compute_scores
 from app.services.recommendation_service import generate as generate_recommendations
+from app.core.config import get_settings
 
 router = APIRouter(prefix="/analysis", tags=["Analysis"])
+settings = get_settings()
+
+
+FALLBACK_READING_PARAGRAPHS = [
+    "Today I felt steady and present. I took short breaks, stayed hydrated, and focused on one task at a time to keep my mind calm and clear.",
+    "I started my day with intention, finished important work, ate balanced meals, and checked in with myself to notice stress before it grew too strong.",
+    "This evening I slowed down, reflected on progress, and practiced a calm breathing rhythm. I am speaking clearly and naturally for this wellness voice check.",
+]
+
+FALLBACK_VIDEO_TASKS = [
+    "Look at the camera center for three seconds, slowly turn your face left and right, then move your chin up and down while maintaining normal breathing.",
+    "Keep your face inside the frame, rotate gently from left to right, raise and lower your gaze, then return to center and blink naturally.",
+    "Face forward first, move your head right then left, tilt slightly upward and downward, and finish by holding still while the capture completes.",
+]
+
+
+@router.get("/checkin-prompts")
+async def get_checkin_prompts(current_user: User = Depends(get_current_user)):
+    """Generate short dynamic prompts for guided voice and video capture during check-in."""
+    base_fallback = {
+        "reading_paragraph": random.choice(FALLBACK_READING_PARAGRAPHS),
+        "video_task": random.choice(FALLBACK_VIDEO_TASKS),
+        "source": "fallback",
+    }
+
+    if not settings.groq_api_key:
+        return base_fallback
+
+    try:
+        # Import lazily so app still starts even if optional package is missing.
+        from langchain_groq import ChatGroq
+
+        llm = ChatGroq(
+            model=settings.groq_model or "llama-3.1-8b-instant",
+            api_key=settings.groq_api_key,
+            temperature=0.8,
+        )
+
+        prompt = (
+            "Return JSON only with keys reading_paragraph and video_task. "
+            "reading_paragraph must be natural English, exactly 20 to 30 words, easy to read aloud. "
+            "video_task must be 20 to 30 words, clearly instructing face movement: center, left-right, up-down, natural blink. "
+            "Do not include markdown or extra keys."
+        )
+
+        response = await llm.ainvoke(prompt)
+        raw = (getattr(response, "content", "") or "").strip()
+
+        if raw.startswith("```"):
+            raw = raw.strip("`")
+            if raw.lower().startswith("json"):
+                raw = raw[4:].strip()
+
+        data = json.loads(raw)
+        reading_paragraph = str(data.get("reading_paragraph", "")).strip()
+        video_task = str(data.get("video_task", "")).strip()
+
+        if not reading_paragraph or not video_task:
+            return base_fallback
+
+        return {
+            "reading_paragraph": reading_paragraph,
+            "video_task": video_task,
+            "source": "groq",
+        }
+    except Exception:
+        return base_fallback
 
 
 def _load_feature_json(session: Session, assessment_id: str, modality: str) -> dict | None:
