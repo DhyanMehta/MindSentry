@@ -2,6 +2,7 @@
  * Assistant Service - API client for MindSentry LangGraph assistant.
  */
 import * as api from './api';
+import { AuthService } from './authService';
 
 const CHAT_TIMEOUT_MS = 120000;
 
@@ -21,13 +22,27 @@ const buildQueryString = (params) => {
 };
 
 class ChatAgentService {
-  static async sendChatMessage(message, sessionId = null, approval = null) {
+  static async sendChatMessage(message, sessionId = null, approval = null, source = null) {
     try {
-      const response = await api.post('/api/v3/chat/message', {
+      const user = await AuthService.getUserData();
+      const payload = {
         message,
-        session_id: sessionId,
-        approval,
-      }, { timeoutMs: CHAT_TIMEOUT_MS });
+        user_id: user?.id ?? null,
+        source: source || 'support_tab',
+      };
+
+      console.log('Sending to /chat-v2:', payload);
+
+      const response = await api.post('/chat-v2', payload, { timeoutMs: CHAT_TIMEOUT_MS });
+
+      // OLD CHAT (LEGACY)
+      // const response = await api.post('/api/v3/chat/message', {
+      //   message,
+      //   session_id: sessionId,
+      //   approval,
+      //   source,
+      // }, { timeoutMs: CHAT_TIMEOUT_MS });
+
       return response;
     } catch (error) {
       console.error('Error sending chat message:', error);

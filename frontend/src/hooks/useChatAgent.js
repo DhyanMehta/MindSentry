@@ -78,7 +78,7 @@ export const useChatAgent = () => {
     return response;
   }, [appendMessage, formatClinicsSummary, sessionId]);
 
-  const sendStructuredMessage = useCallback(async (messageText, displayText = messageText) => {
+  const sendStructuredMessage = useCallback(async (messageText, displayText = messageText, source = 'support_tab') => {
     if (!messageText.trim()) return;
 
     setLoading(true);
@@ -92,7 +92,12 @@ export const useChatAgent = () => {
         createdAt: new Date(),
       });
 
-      const response = await ChatAgentService.sendChatMessage(messageText, sessionId);
+      const response = await ChatAgentService.sendChatMessage(
+        messageText,
+        sessionId,
+        null,
+        source || 'support_tab',
+      );
       return applyAssistantResponse(response);
     } catch (err) {
       setError(err.message || 'Failed to send message');
@@ -103,8 +108,9 @@ export const useChatAgent = () => {
     }
   }, [appendMessage, applyAssistantResponse, sessionId]);
 
-  const sendMessage = useCallback(async (messageText) => {
-    return sendStructuredMessage(messageText, messageText);
+  const sendMessage = useCallback(async (messageText, source = 'support_tab') => {
+    const normalizedSource = typeof source === 'string' ? source : (source?.source || 'support_tab');
+    return sendStructuredMessage(messageText, messageText, normalizedSource);
   }, [sendStructuredMessage]);
 
   const findNearbyClinics = useCallback(async (latitude, longitude, options = {}) => {

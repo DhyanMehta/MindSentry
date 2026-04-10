@@ -21,6 +21,7 @@ from app.api.questionnaires import router as questionnaires_router
 from app.api.analysis import router as analysis_router
 from app.api.history import router as history_router
 from app.api.routes.chat import router as assistant_chat_router
+from app.api.routes.chat_v2 import router as assistant_chat_v2_router
 from app.api.routes.assistant_actions import router as assistant_actions_router
 
 settings = get_settings()
@@ -57,6 +58,7 @@ app.include_router(questionnaires_router)
 app.include_router(analysis_router)
 app.include_router(history_router)
 app.include_router(assistant_chat_router)
+app.include_router(assistant_chat_v2_router)
 app.include_router(assistant_actions_router)
 
 

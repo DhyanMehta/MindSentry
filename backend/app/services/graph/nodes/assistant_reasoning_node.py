@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import logging
 import re
 
 from app.services.graph.state import AssistantGraphState
 from app.services.llm.groq_client import get_groq_client
-from app.services.llm.prompt_builder import ASSISTANT_IDENTITY_PROMPT, build_reasoning_prompt
+from app.services.llm.prompt_builder import ASSISTANT_IDENTITY_PROMPT, build_reasoning_prompt, detect_llm_intent
 
 
 COORD_REGEX = re.compile(r"(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)")
+logger = logging.getLogger(__name__)
 
 
 def _is_clinic_intent(message: str) -> bool:
@@ -105,6 +107,14 @@ def assistant_reasoning_node(state: AssistantGraphState) -> AssistantGraphState:
         )
         return state
 
+    llm_intent = detect_llm_intent(state.get("user_message", ""))
+    include_wellness_context = llm_intent == "SCORE_QUERY"
+    injected_context = {
+        "wellness_score": state.get("wellness_score"),
+        "wellness_trend": state.get("wellness_trend"),
+        "risk_level": state.get("risk_level", "low"),
+    } if include_wellness_context else {}
+
     prompt = build_reasoning_prompt(
         user_message=state["user_message"],
         conversation_summary=state.get("conversation_summary", ""),
@@ -112,6 +122,16 @@ def assistant_reasoning_node(state: AssistantGraphState) -> AssistantGraphState:
         wellness_score=state.get("wellness_score"),
         wellness_trend=state.get("wellness_trend"),
         risk_level=state.get("risk_level", "low"),
+        include_wellness_context=include_wellness_context,
+    )
+
+    logger.info(
+        "assistant_llm_request session_id=%s intent=%s user_query=%r injected_context=%s prompt=%s",
+        state.get("session_id"),
+        llm_intent,
+        (state.get("user_message") or "").strip(),
+        injected_context,
+        prompt,
     )
 
     try:

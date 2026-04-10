@@ -38,28 +38,32 @@ const ChatBotScreen = () => {
 
   const wellnessContext = route?.params?.wellnessContext;
   const initialPrompt = route?.params?.initialPrompt;
+  const chatSource = route?.params?.source || (wellnessContext ? 'scores_tab' : 'support_tab');
 
   useEffect(() => {
     const runContextKickoff = async () => {
       if (!wellnessContext || hasInitializedWithContextRef.current) return;
       hasInitializedWithContextRef.current = true;
-      await sendMessage('Please explain my latest wellness results, what they mean, and what I should focus on next.');
+      await sendMessage(
+        'Please explain my latest wellness results, what they mean, and what I should focus on next.',
+        chatSource
+      );
       navigation.setParams({ wellnessContext: null });
     };
 
     runContextKickoff();
-  }, [wellnessContext, navigation, sendMessage]);
+  }, [wellnessContext, navigation, sendMessage, chatSource]);
 
   useEffect(() => {
     const runInitialPrompt = async () => {
       if (!initialPrompt || hasInitializedWithPromptRef.current) return;
       hasInitializedWithPromptRef.current = true;
-      await sendMessage(initialPrompt);
+      await sendMessage(initialPrompt, chatSource);
       navigation.setParams({ initialPrompt: null });
     };
 
     runInitialPrompt();
-  }, [initialPrompt, navigation, sendMessage]);
+  }, [initialPrompt, navigation, sendMessage, chatSource]);
 
   useEffect(() => {
     if (!pendingApproval) return;
@@ -75,7 +79,7 @@ const ChatBotScreen = () => {
 
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
-    await sendMessage(inputText);
+    await sendMessage(inputText, chatSource);
     setInputText('');
   };
 

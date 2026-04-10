@@ -1,6 +1,9 @@
 """Grounded assistant chat routes for the active MindSentry assistant."""
 from __future__ import annotations
 
+# LEGACY IMPLEMENTATION (DO NOT DELETE)
+# This route remains available for backward compatibility while the new LangGraph agent lives in chat_v2.py.
+
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -187,7 +190,12 @@ def chat_message(
             ]
             suggested_actions.append("Approve the action if you want me to continue.")
         else:
-            info = assistant.handle_information_message(request.message, current_user.id, session_id=session.id)
+            info = assistant.handle_information_message(
+                request.message,
+                current_user.id,
+                session_id=session.id,
+                source=request.source,
+            )
             response_text = info["response"]
             risk_level = info["risk_level"]
             ui_payload = info["ui_payload"]

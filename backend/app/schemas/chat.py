@@ -11,6 +11,7 @@ class ChatMessageRequest(BaseModel):
     message: str = Field(min_length=1, max_length=5000)
     session_id: Optional[str] = None
     approval: Optional["ApprovalDecision"] = None
+    source: Optional[str] = Field(default=None, max_length=64)
 
 
 class ApprovalDecision(BaseModel):

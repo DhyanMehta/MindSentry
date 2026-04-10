@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -37,6 +38,40 @@ FOLLOWUP_REGEX = re.compile(
     r"\b(this|that|it|these|those)\b|^(why|what does that mean|is that bad|how so|what should i do for this)\b",
     re.IGNORECASE,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def detect_intent(query: str) -> str:
+    q = (query or "").strip().lower()
+
+    if any(term in q for term in ("score", "check-in", "check in", "wellness score", "risk level", "snapshot")):
+        return "SCORE_QUERY"
+    if any(
+        term in q
+        for term in (
+            "exercise",
+            "feel",
+            "health",
+            "pain",
+            "sick",
+            "fever",
+            "headache",
+            "diet",
+            "sleep",
+            "workout",
+        )
+    ):
+        return "HEALTH_QUERY"
+    if any(term in q for term in ("hi", "hello", "hey", "namaste", "good morning", "good afternoon", "good evening")):
+        return "GREETING"
+
+    return "GENERAL"
+
+
+def _should_force_score_from_source(source: Optional[str]) -> bool:
+    normalized = (source or "").strip().lower()
+    return normalized in {"scores_tab", "scores-tab", "fresh-checkin", "history-result"}
 
 
 def _parse_iso_datetime(datetime_text: str) -> tuple[str, str]:
@@ -319,8 +354,14 @@ class GroundedAssistantService:
     def _detect_intent(self, *, message: str, history: List[Dict[str, str]]) -> str:
         message_lower = message.lower()
         word_count = len(message_lower.split())
+        coarse_intent = detect_intent(message)
 
-        if GREETING_REGEX.search(message_lower) and word_count <= 8 and not _contains_any(
+        if coarse_intent == "SCORE_QUERY":
+            return "score_explanation"
+        if coarse_intent == "HEALTH_QUERY":
+            return "health_query"
+
+        if coarse_intent == "GREETING" and GREETING_REGEX.search(message_lower) and word_count <= 8 and not _contains_any(
             message_lower, ("score", "stress", "mood", "trend", "clinic", "appointment")
         ):
             return "greeting"
@@ -524,6 +565,20 @@ class GroundedAssistantService:
             "answer_topic": "general_wellness",
         }
 
+    def _build_health_response(self, message: str) -> Dict[str, Any]:
+        cleaned = _clean_message_text(message)
+        return {
+            "response": (
+                "I hear you. For health concerns, start with rest, hydration, and monitoring your symptoms. "
+                "If symptoms are severe, worsening, or persistent, contact a licensed clinician or urgent care. "
+                f"If you want, I can help you break this into immediate next steps for: \"{cleaned[:120]}\"."
+            ),
+            "used_data": [],
+            "warnings": [],
+            "suggested_actions": ["Tell me your top symptom and I can suggest a safe next-step checklist."],
+            "answer_topic": "health",
+        }
+
     def _build_clarification_response(self, context: Dict[str, Any], topic: Optional[str], risk_text: str) -> Dict[str, Any]:
         if topic in {"stress", "mood"}:
             return self._build_recommendation_response(context, topic)
@@ -558,11 +613,23 @@ class GroundedAssistantService:
         user_id: int,
         *,
         session_id: Optional[str] = None,
+        source: Optional[str] = None,
     ) -> Dict[str, Any]:
         context = self.load_context_bundle(user_id)
         risk_level = self.detect_risk(message, context)
         history = self.load_recent_history(session_id=session_id, current_message=message)
         intent = self._detect_intent(message=message, history=history)
+        force_include_score = _should_force_score_from_source(source) and not history
+
+        logger.info(
+            "assistant_intake user_id=%s session_id=%s source=%s intent=%s force_include_score=%s query=%r",
+            user_id,
+            session_id,
+            source,
+            intent,
+            force_include_score,
+            _clean_message_text(message),
+        )
 
         if risk_level == "crisis":
             crisis_message = (
@@ -620,8 +687,14 @@ class GroundedAssistantService:
 
         if intent == "greeting":
             payload = self._build_greeting_response(True)
+            if force_include_score:
+                payload = self._build_score_response(context, risk_text)
         elif intent == "score_explanation":
             payload = self._build_score_response(context, risk_text)
+        elif intent == "health_query":
+            payload = self._build_health_response(message)
+            if force_include_score:
+                payload = self._build_score_response(context, risk_text)
         elif intent == "emotion_or_symptom_question":
             payload = self._build_emotion_response(context)
         elif intent == "recommendation_or_next_step":
@@ -642,12 +715,29 @@ class GroundedAssistantService:
             }
         else:
             payload = self._build_general_response(context, risk_text)
+            if not force_include_score:
+                payload = {
+                    "response": "I can help with that directly. Tell me what you want support with right now, and I will keep the guidance focused on your question.",
+                    "used_data": [],
+                    "warnings": [],
+                    "suggested_actions": ["Ask a health question, or ask for score details explicitly if you want them."],
+                    "answer_topic": "general_health",
+                }
 
         warnings = list(payload["warnings"])
         if latest_analysis.confidence_score is not None and float(latest_analysis.confidence_score) < 0.45:
             warnings.append(
                 "Your latest analysis confidence is relatively low, so treat this as supportive guidance, not a diagnosis."
             )
+
+        logger.info(
+            "assistant_context_decision session_id=%s intent=%s source=%s force_include_score=%s used_data=%s",
+            session_id,
+            intent,
+            source,
+            force_include_score,
+            _unique_nonempty(payload["used_data"]),
+        )
 
         return {
             "response": payload["response"],
@@ -668,6 +758,8 @@ class GroundedAssistantService:
                     "intent": intent,
                     "topic": payload["answer_topic"],
                     "used_data": _unique_nonempty(payload["used_data"]),
+                    "source": source,
+                    "force_include_score": force_include_score,
                 }
             ],
         }
