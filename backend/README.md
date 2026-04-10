@@ -1,6 +1,6 @@
 # MindSentry Backend API
 
-Clean, scalable FastAPI backend with PostgreSQL (recommended) and JWT authentication.
+Clean, scalable FastAPI backend with SQLite (`mindsentry.db`) and JWT authentication.
 
 ## Setup Instructions
 
@@ -29,18 +29,11 @@ pip install -r requirements.txt
 Create a `backend/.env` file:
 
 ```env
-# PostgreSQL (recommended)
-DATABASE_URL=postgresql+psycopg://postgres:YOUR_PASSWORD@localhost:5432/mindsentry
+DATABASE_URL=sqlite:///./mindsentry.db
 
 # App settings
 DEBUG=true
 SECRET_KEY=your-secret-key-change-in-production-min-32-chars-long
-```
-
-If you still want SQLite for local testing, you can use:
-
-```env
-DATABASE_URL=sqlite:///./mindsentry.db
 ```
 
 ### 4. Run the Server
@@ -157,30 +150,8 @@ Authorization: Bearer <your_access_token>
 
 ## Database
 
-PostgreSQL is recommended. On startup, the app auto-creates all tables from models.
-
-### pgAdmin Setup
-
-1. Create database:
-
-```sql
-CREATE DATABASE mindsentry;
-```
-
-2. Optional: create dedicated DB user:
-
-```sql
-CREATE USER mindsentry_user WITH PASSWORD 'StrongPassword123!';
-GRANT ALL PRIVILEGES ON DATABASE mindsentry TO mindsentry_user;
-```
-
-3. Use matching connection string in `.env`:
-
-```env
-DATABASE_URL=postgresql+psycopg://mindsentry_user:StrongPassword123!@localhost:5432/mindsentry
-```
-
-4. Start API. Tables are created automatically.
+This project uses a single database file: `backend/mindsentry.db`.
+On startup, the app auto-creates all tables from models.
 
 ## Security
 

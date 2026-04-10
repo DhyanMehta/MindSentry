@@ -1,6 +1,3 @@
-/**
- * ChatBotScreen - AarogyaAI chat with RAG context awareness
- */
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -17,9 +14,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import * as Location from 'expo-location';
 import { useChatAgent } from '../hooks/useChatAgent';
 import { ErrorBox } from '../components/ErrorBox';
+import { colors } from '../theme/colors';
 
 const ChatBotScreen = () => {
   const navigation = useNavigation();
@@ -28,74 +25,58 @@ const ChatBotScreen = () => {
     messages,
     loading,
     error,
-    agentResult,
+    pendingApproval,
     sendMessage,
-    findNearbyClinics,
+    submitApproval,
     setError,
     clearMessages,
   } = useChatAgent();
-  const hasInitializedWithContextRef = useRef(false);
 
+  const hasInitializedWithContextRef = useRef(false);
+  const hasInitializedWithPromptRef = useRef(false);
   const [inputText, setInputText] = useState('');
 
   const wellnessContext = route?.params?.wellnessContext;
+  const initialPrompt = route?.params?.initialPrompt;
 
   useEffect(() => {
     const runContextKickoff = async () => {
       if (!wellnessContext || hasInitializedWithContextRef.current) return;
-
       hasInitializedWithContextRef.current = true;
-
-      const contextPrompt = [
-        'You are given the latest wellness check-in context. Reply in exactly two sections before any normal chat:',
-        '1) Answer First: one concise practical recommendation.',
-        '2) Your Thought: brief reasoning based on the data.',
-        'Then ask one follow-up question.',
-        '',
-        `Wellness score: ${wellnessContext?.wellnessScore ?? '--'}`,
-        `Risk level: ${wellnessContext?.riskLevel ?? '--'}`,
-        `Mood score: ${wellnessContext?.moodScorePercent ?? '--'}%`,
-        `Stress score: ${wellnessContext?.stressScorePercent ?? '--'}%`,
-        `Text emotion: ${wellnessContext?.textEmotion ?? 'Unknown'}`,
-        `Voice emotion: ${wellnessContext?.audioEmotion ?? 'Unknown'}`,
-        `Video emotion: ${wellnessContext?.videoEmotion ?? 'Unknown'}`,
-        `Top recommendations: ${JSON.stringify(wellnessContext?.topRecommendations || [])}`,
-      ].join('\n');
-
-      await sendMessage(contextPrompt);
+      await sendMessage('Please explain my latest wellness results, what they mean, and what I should focus on next.');
       navigation.setParams({ wellnessContext: null });
     };
 
     runContextKickoff();
   }, [wellnessContext, navigation, sendMessage]);
 
+  useEffect(() => {
+    const runInitialPrompt = async () => {
+      if (!initialPrompt || hasInitializedWithPromptRef.current) return;
+      hasInitializedWithPromptRef.current = true;
+      await sendMessage(initialPrompt);
+      navigation.setParams({ initialPrompt: null });
+    };
+
+    runInitialPrompt();
+  }, [initialPrompt, navigation, sendMessage]);
+
+  useEffect(() => {
+    if (!pendingApproval) return;
+    Alert.alert(
+      'Confirm Action',
+      `Approve action: ${pendingApproval.tool_name || 'Continue'}?`,
+      [
+        { text: 'Deny', style: 'cancel', onPress: () => submitApproval(false) },
+        { text: 'Approve', onPress: () => submitApproval(true) },
+      ]
+    );
+  }, [pendingApproval, submitApproval]);
+
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
-
     await sendMessage(inputText);
     setInputText('');
-  };
-
-  const handleUseMyLocation = async () => {
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Alert.alert('Permission Required', 'Location permission is needed to find nearby clinics.');
-        return;
-      }
-
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      const latitude = Number(position.coords.latitude);
-      const longitude = Number(position.coords.longitude);
-
-      await findNearbyClinics(latitude, longitude, { radiusKm: 10.0 });
-    } catch (err) {
-      console.error('Use location error:', err);
-      Alert.alert('Location Error', 'Unable to fetch your location right now. Please try again.');
-    }
   };
 
   const renderMessage = (message) => {
@@ -113,7 +94,7 @@ const ChatBotScreen = () => {
       >
         {isSystem && (
           <View style={styles.systemMessageHeader}>
-            <Text style={styles.systemLabel}>🤖 AGENT UPDATE</Text>
+            <Text style={styles.systemLabel}>AROGYAAI UPDATE</Text>
           </View>
         )}
 
@@ -127,31 +108,29 @@ const ChatBotScreen = () => {
           {message.content}
         </Text>
 
-        {message.contextUsed && (
+        {message.contextUsed && !isUser && (
           <View style={styles.contextIndicator}>
-            <Text style={styles.contextLabel}>📚 Context-aware response</Text>
+            <Text style={styles.contextLabel}>Based on your recent wellness context</Text>
           </View>
         )}
 
-        {message.agentData && typeof message.agentData === 'object' && message.agentData !== null && (
+        {message.agentData && typeof message.agentData === 'object' && message.agentData !== null && !Array.isArray(message.agentData) && (
           <View style={styles.agentDataBox}>
-            <Text style={styles.agentDataTitle}>Agent Details:</Text>
-            {!Array.isArray(message.agentData) && (
-              <Text style={styles.agentDataContent} numberOfLines={5} ellipsizeMode="tail">
-                {(() => {
-                  try {
-                    const stringified = JSON.stringify(message.agentData, null, 2);
-                    return stringified.substring(0, 200) + (stringified.length > 200 ? '...' : '');
-                  } catch (e) {
-                    return '[Unable to render agent data]';
-                  }
-                })()}
-              </Text>
-            )}
+            <Text style={styles.agentDataTitle}>Structured details</Text>
+            <Text style={styles.agentDataContent} numberOfLines={5} ellipsizeMode="tail">
+              {(() => {
+                try {
+                  const stringified = JSON.stringify(message.agentData, null, 2);
+                  return stringified.substring(0, 220) + (stringified.length > 220 ? '...' : '');
+                } catch (_error) {
+                  return '[Unable to render details]';
+                }
+              })()}
+            </Text>
           </View>
         )}
 
-        <Text style={styles.messageTime}>
+        <Text style={[styles.messageTime, isUser && styles.userMessageTime]}>
           {message.createdAt?.toLocaleTimeString() || 'Just now'}
         </Text>
       </View>
@@ -161,28 +140,27 @@ const ChatBotScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>AarogyaAI</Text>
-        <Text style={styles.headerSubtitle}>Your AI wellness companion</Text>
+        <View>
+          <Text style={styles.headerEyebrow}>Wellness Chat</Text>
+          <Text style={styles.headerTitle}>ArogyaAI</Text>
+          <Text style={styles.headerSubtitle}>Ask about your scores, patterns, and next supportive steps.</Text>
+        </View>
+        <TouchableOpacity style={styles.clearPill} onPress={clearMessages}>
+          <Ionicons name="refresh-outline" size={16} color={colors.primary} />
+          <Text style={styles.clearPillText}>Reset</Text>
+        </TouchableOpacity>
       </View>
 
       {!!wellnessContext && (
         <View style={styles.contextReadyBanner}>
-          <Ionicons name="sparkles-outline" size={14} color="#4338CA" />
-          <Text style={styles.contextReadyText}>Loaded your latest wellness context for first response.</Text>
+          <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
+          <Text style={styles.contextReadyText}>Loaded your latest wellness context for the first response.</Text>
         </View>
       )}
 
-      {error && (
-        <ErrorBox
-          message={error}
-          onDismiss={() => setError(null)}
-        />
-      )}
+      {error && <ErrorBox message={error} onDismiss={() => setError(null)} />}
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.chatContainer}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.chatContainer}>
         <ScrollView
           style={styles.messagesContainer}
           contentContainerStyle={styles.messagesContentContainer}
@@ -190,13 +168,12 @@ const ChatBotScreen = () => {
         >
           {messages.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>💬</Text>
-              <Text style={styles.emptyTitle}>Welcome to AarogyaAI</Text>
+              <View style={styles.emptyOrb}>
+                <Ionicons name="chatbubble-ellipses-outline" size={34} color={colors.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>Start with ArogyaAI</Text>
               <Text style={styles.emptySubtitle}>
-                Share what's on your mind. Our AI assistant is here to help.
-              </Text>
-              <Text style={styles.emptyHint}>
-                You can ask for clinic recommendations, book appointments, or just chat about your wellness.
+                Ask what your latest score means, why stress changed, or what small step would help today.
               </Text>
             </View>
           ) : (
@@ -205,26 +182,18 @@ const ChatBotScreen = () => {
 
           {loading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#7B68EE" />
-              <Text style={styles.loadingText}>Thinking...</Text>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.loadingText}>ArogyaAI is thinking...</Text>
             </View>
           )}
         </ScrollView>
 
         <View style={styles.inputContainer}>
-          <TouchableOpacity
-            style={[styles.locationButton, loading && styles.locationButtonDisabled]}
-            onPress={handleUseMyLocation}
-            disabled={loading}
-          >
-            <Text style={styles.locationButtonText}>Use My Real Location</Text>
-          </TouchableOpacity>
-
           <View style={styles.inputBox}>
             <TextInput
               style={styles.input}
-              placeholder="Type your message..."
-              placeholderTextColor="#999"
+              placeholder="Ask ArogyaAI about your wellness..."
+              placeholderTextColor="#8AA0A7"
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -239,16 +208,9 @@ const ChatBotScreen = () => {
               onPress={handleSendMessage}
               disabled={loading || !inputText.trim()}
             >
-              <Text style={styles.sendButtonText}>Send</Text>
+              <Ionicons name="arrow-up" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={clearMessages}
-          >
-            <Text style={styles.clearButtonText}>Clear</Text>
-          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -258,236 +220,215 @@ const ChatBotScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.background,
   },
   header: {
+    backgroundColor: colors.card,
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFF',
+    paddingTop: 12,
+    paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: colors.divider,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerEyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 4,
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    marginTop: 4,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
+    marginTop: 4,
+    fontSize: 13,
+    color: colors.textSecondary,
+    maxWidth: 240,
+    lineHeight: 19,
+  },
+  clearPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primaryTint,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  clearPillText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
   },
   contextReadyBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#C7D2FE',
+    borderBottomColor: colors.divider,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 9,
   },
   contextReadyText: {
-    color: '#4338CA',
+    color: colors.primary,
     fontSize: 12,
     fontWeight: '600',
   },
-  chatContainer: {
-    flex: 1,
-  },
-  messagesContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  messagesContentContainer: {
-    paddingBottom: 16,
-  },
+  chatContainer: { flex: 1 },
+  messagesContainer: { flex: 1, paddingHorizontal: 16, paddingVertical: 14 },
+  messagesContentContainer: { paddingBottom: 18 },
   emptyState: {
-    flex: 1,
-    justifyContent: 'center',
+    paddingVertical: 80,
     alignItems: 'center',
-    paddingVertical: 60,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
+  emptyOrb: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryTint,
+    marginBottom: 18,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 8,
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.textPrimary,
   },
   emptySubtitle: {
+    marginTop: 10,
     fontSize: 14,
-    color: '#666',
+    lineHeight: 21,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 20,
-  },
-  emptyHint: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-    paddingHorizontal: 20,
-    fontStyle: 'italic',
+    paddingHorizontal: 18,
   },
   messageBubble: {
-    maxWidth: '85%',
+    maxWidth: '86%',
     marginVertical: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#E8E8E8',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
     alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   userMessageBubble: {
-    backgroundColor: '#7B68EE',
+    backgroundColor: colors.primary,
     alignSelf: 'flex-end',
-    maxWidth: '85%',
+    borderColor: colors.primary,
   },
   systemMessageBubble: {
-    backgroundColor: '#F0E8FF',
+    backgroundColor: colors.surface,
     alignSelf: 'center',
-    maxWidth: '90%',
-    marginVertical: 12,
-    paddingVertical: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#7B68EE',
+    maxWidth: '92%',
+    borderColor: colors.divider,
   },
-  systemMessageHeader: {
-    marginBottom: 8,
-  },
+  systemMessageHeader: { marginBottom: 8 },
   systemLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#7B68EE',
-    textTransform: 'uppercase',
+    fontWeight: '800',
+    color: colors.primary,
     letterSpacing: 0.5,
   },
   messageText: {
     fontSize: 14,
-    color: '#1A1A1A',
+    color: colors.textPrimary,
     lineHeight: 20,
   },
-  userMessageText: {
-    color: '#FFF',
-  },
-  systemMessageText: {
-    color: '#333',
-    fontSize: 13,
-  },
+  userMessageText: { color: '#FFF' },
+  systemMessageText: { color: colors.textSecondary },
   contextIndicator: {
     marginTop: 8,
     paddingTop: 6,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
+    borderTopColor: colors.divider,
   },
   contextLabel: {
     fontSize: 11,
-    color: 'rgba(0,0,0,0.6)',
+    color: colors.textSecondary,
     fontStyle: 'italic',
   },
   agentDataBox: {
     marginTop: 10,
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
   },
   agentDataTitle: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   agentDataContent: {
     fontSize: 11,
-    color: '#666',
+    color: colors.textSecondary,
     fontFamily: 'monospace',
   },
   messageTime: {
     fontSize: 10,
-    color: 'rgba(0,0,0,0.4)',
-    marginTop: 4,
+    color: colors.textMuted,
+    marginTop: 6,
   },
+  userMessageTime: { color: 'rgba(255,255,255,0.7)' },
   loadingContainer: {
-    paddingVertical: 20,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
   },
   loadingText: {
-    marginTop: 8,
-    color: '#7B68EE',
-    fontSize: 14,
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   inputContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    paddingTop: 8,
-    backgroundColor: '#FFF',
+    paddingTop: 10,
+    paddingBottom: 14,
+    backgroundColor: colors.card,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
-  },
-  locationButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F2EEFF',
-    borderColor: '#7B68EE',
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-  },
-  locationButtonDisabled: {
-    opacity: 0.6,
-  },
-  locationButtonText: {
-    color: '#5A4ACF',
-    fontSize: 12,
-    fontWeight: '600',
+    borderTopColor: colors.divider,
   },
   inputBox: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginBottom: 8,
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#DDD',
-    backgroundColor: '#F5F5F5',
-    paddingRight: 8,
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
+    paddingLeft: 4,
+    paddingRight: 6,
   },
   input: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#1A1A1A',
+    color: colors.textPrimary,
     maxHeight: 100,
   },
   sendButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#7B68EE',
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
   },
   sendButtonDisabled: {
-    backgroundColor: '#CCC',
-  },
-  sendButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  clearButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    alignSelf: 'flex-end',
-  },
-  clearButtonText: {
-    color: '#999',
-    fontSize: 12,
+    backgroundColor: '#B9C8CF',
   },
 });
 

@@ -13,7 +13,6 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
@@ -24,6 +23,7 @@ import { SectionHeader } from '../components/SectionHeader';
 import { ErrorBox } from '../components/ErrorBox';
 import { AssessmentService } from '../services/assessmentService';
 import { ApiService } from '../services/api';
+import { navigateToDashboard } from '../navigation/navigationHelpers';
 
 const LAST_CHECKIN_RESULT_KEY = 'mindsentry_last_checkin_result';
 const LOW_SCORE_THRESHOLD = 45;
@@ -237,18 +237,10 @@ export const CheckInScreen = () => {
     setHistoryLoading(true);
     setErrorMsg('');
     try {
-      const [analysisResult, risk, recs] = await Promise.all([
-        ApiService.getAnalysisResult(assessmentId),
-        ApiService.getRiskScore(assessmentId),
-        ApiService.getRecommendations(assessmentId),
-      ]);
-
-      setResult({
-        ...analysisResult,
-        assessment_id: analysisResult?.assessment_id || assessmentId,
-      });
-      setRiskScore(risk || null);
-      setRecommendations(Array.isArray(recs) ? recs : []);
+      const bundle = await AssessmentService.loadAssessmentBundle(assessmentId);
+      setResult(bundle.result);
+      setRiskScore(bundle.risk);
+      setRecommendations(bundle.recommendations);
       setPhase('success');
     } catch (err) {
       setErrorMsg(err?.message || 'Could not load this check-in result.');
@@ -285,32 +277,6 @@ export const CheckInScreen = () => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const buildCheckInNarrative = () => {
-    const parts = [`Mood: ${mood}.`];
-
-    for (const q of DAILY_QUESTIONS) {
-      const value = answers[q.id];
-      if (value) {
-        parts.push(`${q.title} ${value}.`);
-      }
-    }
-
-    if (daySummary.trim()) {
-      parts.push(`Daily activities: ${daySummary.trim()}.`);
-    }
-    if (foodSummary.trim()) {
-      parts.push(`Food and hydration: ${foodSummary.trim()}.`);
-    }
-    if (audioUri) {
-      parts.push('Voice reading sample captured with guided paragraph.');
-    }
-    if (videoUri) {
-      parts.push('Guided face movement video sample captured for visual analysis.');
-    }
-
-    return parts.join(' ');
   };
 
   const startAudioRecording = async () => {
@@ -396,7 +362,6 @@ export const CheckInScreen = () => {
       return;
     }
 
-    const checkInText = buildCheckInNarrative();
     setErrorMsg('');
     setPhase('submitting');
     setProcessingStage('Creating your check-in session...');
@@ -408,7 +373,11 @@ export const CheckInScreen = () => {
       setProcessingStage('Running AI analysis...');
 
       const { assessment, result: analysisResult, risk, recommendations: recs, inference } =
-        await AssessmentService.performCheckIn(mood, checkInText, {
+        await AssessmentService.performCheckIn({
+          mood,
+          answers,
+          daySummary,
+          foodSummary,
           audioUri,
           videoUri,
         });
@@ -443,6 +412,7 @@ export const CheckInScreen = () => {
   };
 
   const handleReset = () => {
+    AssessmentService.clearCurrentId();
     setPhase('idle');
     setResult(null);
     setRiskScore(null);
@@ -713,26 +683,22 @@ export const CheckInScreen = () => {
 
         <View style={styles.resultButtonsBlock}>
           <View style={styles.resultButtonsRow}>
-            <Pressable style={[styles.resultActionButton, styles.resultGhostButton]} onPress={() => navigation.navigate('Dashboard')}>
+            <Pressable style={[styles.resultActionButton, styles.resultGhostButton]} onPress={() => navigateToDashboard(navigation)}>
               <Text style={styles.resultGhostText}>Go to Dashboard</Text>
             </Pressable>
             <Pressable
               style={[styles.resultActionButton, styles.resultGhostButton]}
               onPress={() => navigation.navigate('ChatBot', { wellnessContext: chatContext })}
             >
-              <Text style={styles.resultGhostText}>Talk to AarogyaAI</Text>
+              <Text style={styles.resultGhostText}>Talk to MindSentry Assistant</Text>
             </Pressable>
           </View>
 
           <Pressable onPress={handleReset} style={styles.doneButton}>
-            <LinearGradient
-              colors={[colors.primary, '#7C3AED']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={styles.doneGradient}
-            >
+            <View style={styles.donePrimary}>
               <Text style={styles.doneButtonText}>New Check-in</Text>
               <Ionicons name="refresh" size={20} color="#fff" style={{ marginLeft: 8 }} />
-            </LinearGradient>
+            </View>
           </Pressable>
         </View>
 
@@ -748,7 +714,7 @@ export const CheckInScreen = () => {
           <SectionHeader
             title="Daily Check-in"
             showBack
-            onBackPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Dashboard'))}
+            onBackPress={() => (navigation.canGoBack() ? navigation.goBack() : navigateToDashboard(navigation))}
           />
           <Text style={styles.subHeader}>A guided check-in with AI-powered text, voice, and face movement signals</Text>
 
@@ -1215,7 +1181,7 @@ const styles = StyleSheet.create({
     elevation: 4,
     marginTop: 4,
   },
-  doneGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16 },
+  donePrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, backgroundColor: colors.primary },
   doneButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   fullScreenCamera: { flex: 1, backgroundColor: '#000' },

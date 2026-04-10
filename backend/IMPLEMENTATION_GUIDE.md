@@ -102,7 +102,7 @@ Create/update `.env`:
 ```env
 GROQ_API_KEY=your_groq_api_key
 GOOGLE_MAPS_API_KEY=optional_key
-DATABASE_URL=postgresql://user:password@localhost/mindsentry
+DATABASE_URL=sqlite:///./mindsentry.db
 ```
 
 Get GROQ API key:
@@ -601,7 +601,7 @@ asyncio.run(test_agent())
 - [ ] Set `GROQ_API_KEY` from production account
 - [ ] Configure `SENTENCE_TRANSFORMERS_CACHE` to persistent directory (e.g., `/var/lib/mindsentry/transformers`)
 - [ ] Configure `CHROMA_PERSIST_DIR` to persistent directory (e.g., `/var/lib/mindsentry/chroma_db`)
-- [ ] Set `DATABASE_URL` to production PostgreSQL instance
+- [ ] Keep `DATABASE_URL=sqlite:///./mindsentry.db` in deployment environment
 - [ ] Set `SECRET_KEY` in config (validate on startup)
 - [ ] Configure CORS for frontend domain
 - [ ] Enable HTTPS/TLS for API endpoints

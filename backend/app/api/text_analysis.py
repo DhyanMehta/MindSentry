@@ -12,13 +12,13 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 from app.api.auth import get_current_user
 from app.models.user import User
-from app.models.assessment import Assessment
 from app.models.text_entry import TextEntry
 from app.models.extracted_feature import ExtractedFeature
 from app.models.safety_flag import SafetyFlag
 from app.schemas.text import TextEntryCreate, TextEntryResponse
-from app.services.text_service import analyse_text
+from app.services.text_inference_service import analyse_text
 from app.services.safety_service import scan_text, build_safety_flags
+from app.services.assessment_scope_service import get_user_assessment_or_404
 import json
 
 router = APIRouter(prefix="/text", tags=["Text Analysis"])
@@ -31,9 +31,7 @@ def submit_text(
     session: Session = Depends(get_session),
 ):
     # Validate assessment belongs to user
-    assessment = session.get(Assessment, data.assessment_id)
-    if not assessment or assessment.user_id != current_user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Assessment not found")
+    get_user_assessment_or_404(session, data.assessment_id, current_user)
 
     # Run text analysis
     result = analyse_text(data.raw_text)
@@ -55,8 +53,8 @@ def submit_text(
         modality_type="text",
         feature_namespace="emotion",
         feature_json=json.dumps(result),
-        extractor_name="distilroberta-base-go-emotions",
-        extractor_version="1.1",
+        extractor_name=result.get("model_name", "j-hartmann/emotion-english-distilroberta-base"),
+        extractor_version="2.0",
     )
     session.add(feature)
 

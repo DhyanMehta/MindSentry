@@ -84,8 +84,8 @@ GOOGLE_MAPS_API_KEY=your_google_maps_key_here
 SENTENCE_TRANSFORMERS_CACHE=/path/to/cache/sentence_transformers
 CHROMA_PERSIST_DIR=/path/to/cache/chroma_db
 
-# Database (already configured, no changes needed)
-DATABASE_URL=postgresql://...
+# Database (single supported DB)
+DATABASE_URL=sqlite:///./mindsentry.db
 ```
 
 **How to get GROQ_API_KEY:**

@@ -1,7 +1,7 @@
 /**
- * useChatAgent Hook - Manages chat state and agent interactions
+ * useChatAgent Hook - manages MindSentry assistant chat state.
  */
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import ChatAgentService from '../services/chatAgentService';
 
 export const useChatAgent = () => {
@@ -9,9 +9,8 @@ export const useChatAgent = () => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [agentResult, setAgentResult] = useState(null);
-  const messagesEndRef = useRef(null);
-
+  const [pendingApproval, setPendingApproval] = useState(null);
+  const [reminderPrompt, setReminderPrompt] = useState(null);
   const appendMessage = useCallback((nextMessage) => {
     setMessages(prev => {
       if (!nextMessage?.id) return [...prev, nextMessage];
@@ -20,11 +19,10 @@ export const useChatAgent = () => {
     });
   }, []);
 
-  const formatClinicsSummary = useCallback((result) => {
-    const clinics = Array.isArray(result?.clinics) ? result.clinics : [];
+  const formatClinicsSummary = useCallback((clinics = []) => {
     const top = clinics.slice(0, 5);
     if (!top.length) {
-      return result?.message || 'No nearby clinics found.';
+      return 'No nearby clinics found.';
     }
 
     const lines = top.map((c, idx) => {
@@ -32,198 +30,148 @@ export const useChatAgent = () => {
       return `${idx + 1}. ${c.name || 'Clinic'} - ${distance}`;
     });
 
-    const suffix = (result?.total_count && result.total_count > top.length)
-      ? `\nShowing nearest ${top.length} of ${result.total_count} results.`
-      : '';
-
-    return `Nearest clinics:\n${lines.join('\n')}${suffix}`;
+    return `Nearest clinics:\n${lines.join('\n')}`;
   }, []);
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const applyAssistantResponse = useCallback((response) => {
+    if (response.session_id && !sessionId) {
+      setSessionId(response.session_id);
+    }
 
-  /**
-   * Send a message to AarogyaAI
-   */
-  const sendMessage = useCallback(async (messageText) => {
+    appendMessage({
+      id: response.message_id || `assistant-${Date.now()}`,
+      role: 'assistant',
+      content: response.response,
+      contextUsed: Array.isArray(response.used_data) && response.used_data.length > 0,
+      uiPayload: response.ui_payload || [],
+      answerIntent: response.answer_intent || null,
+      answerTopic: response.answer_topic || null,
+      createdAt: new Date(),
+    });
+
+    const uiItems = Array.isArray(response.ui_payload) ? response.ui_payload : [];
+    const approvalItem = uiItems.find((x) => x?.type === 'approval_prompt' && x?.action_id);
+    setPendingApproval(approvalItem || null);
+    const reminderItem = uiItems.find((x) => x?.type === 'reminder_prompt');
+    setReminderPrompt(reminderItem || null);
+
+    const clinicItem = uiItems.find((x) => x?.type === 'clinic_cards');
+    if (clinicItem?.clinics?.length) {
+      appendMessage({
+        id: `clinics-${Date.now()}`,
+        role: 'system',
+        content: formatClinicsSummary(clinicItem.clinics),
+        agentData: clinicItem.clinics,
+        createdAt: new Date(),
+      });
+    }
+
+    if (Array.isArray(response.warnings) && response.warnings.length) {
+      appendMessage({
+        id: `warning-${Date.now()}`,
+        role: 'system',
+        content: response.warnings.join('\n'),
+        createdAt: new Date(),
+      });
+    }
+
+    return response;
+  }, [appendMessage, formatClinicsSummary, sessionId]);
+
+  const sendStructuredMessage = useCallback(async (messageText, displayText = messageText) => {
     if (!messageText.trim()) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      // Add user message to UI immediately
       appendMessage({
         id: `msg-${Date.now()}`,
         role: 'user',
-        content: messageText,
+        content: displayText,
         createdAt: new Date(),
       });
 
-      // Send with agent capability
-      const response = await ChatAgentService.sendChatWithAgent(messageText, sessionId);
-
-      // Update session ID if new
-      if (response.session_id && !sessionId) {
-        setSessionId(response.session_id);
-      }
-
-      // Add assistant response
-      appendMessage({
-        id: response.message_id,
-        role: 'assistant',
-        content: response.chatbot_response,
-        contextUsed: response.context_used,
-        retrievedContext: response.retrieved_context || [],
-        createdAt: new Date(),
-      });
-
-      // Store agent result if triggered
-      if (response.agent_triggered) {
-        setAgentResult(response.agent_result);
-
-        // Add agent result as system message
-        if (response.agent_result?.result?.success) {
-          const resultPayload = response.agent_result.result;
-          const agentSummary = resultPayload?.clinics
-            ? formatClinicsSummary(resultPayload)
-            : `Agent Action: ${resultPayload.message}`;
-
-          appendMessage({
-            id: `agent-${response.agent_result.task_id}`,
-            role: 'system',
-            content: agentSummary,
-            agentData: resultPayload,
-            createdAt: new Date(),
-          });
-        }
-      }
+      const response = await ChatAgentService.sendChatMessage(messageText, sessionId);
+      return applyAssistantResponse(response);
     } catch (err) {
       setError(err.message || 'Failed to send message');
       console.error('Send message error:', err);
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [appendMessage, applyAssistantResponse, sessionId]);
 
-  /**
-   * Find nearby clinics
-   */
+  const sendMessage = useCallback(async (messageText) => {
+    return sendStructuredMessage(messageText, messageText);
+  }, [sendStructuredMessage]);
+
   const findNearbyClinics = useCallback(async (latitude, longitude, options = {}) => {
+    const specialty = options?.clinicType || 'none';
+    const radius = options?.radiusKm || 10;
+    return sendStructuredMessage(
+      `[clinic_search] latitude=${latitude} longitude=${longitude} specialty=${String(specialty).replace(/\s+/g, '_')} radius_km=${radius}`,
+      `Find nearby ${specialty === 'none' ? 'clinics' : specialty.replace(/_/g, ' ')} near my current location.`
+    );
+  }, [sendStructuredMessage]);
+
+  const submitApproval = useCallback(async (approved) => {
+    if (!pendingApproval || !sessionId) return null;
     setLoading(true);
     setError(null);
-
     try {
-      const response = await ChatAgentService.findNearbyClinics(latitude, longitude, options);
-      setAgentResult(response);
-
-      if (response.result?.success) {
-        appendMessage({
-          id: `clinics-${response.task_id}`,
-          role: 'system',
-          content: formatClinicsSummary(response.result),
-          agentData: response.result,
-          createdAt: new Date(),
-        });
-      } else {
-        setError(response.error || 'Failed to find clinics');
-      }
-
-      return response;
-    } catch (err) {
-      setError(err.message || 'Error finding clinics');
-      console.error('Find clinics error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  /**
-   * Book an appointment
-   */
-  const bookAppointment = useCallback(async (clinicId, appointmentDate, options = {}) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await ChatAgentService.bookAppointment(
-        clinicId,
-        appointmentDate,
-        options
+      const response = await ChatAgentService.submitApproval(
+        sessionId,
+        pendingApproval.action_id,
+        approved,
+        approved ? 'Yes, please continue with that action.' : 'No, please do not continue with that action.'
       );
-      setAgentResult(response);
-
-      if (response.result?.success) {
-        const appointmentInfo = response.result.data;
-        appendMessage({
-          id: `appointment-${response.task_id}`,
-          role: 'system',
-          content: `Appointment booked at ${appointmentInfo.clinic_name} on ${appointmentInfo.appointment_date}`,
-          agentData: appointmentInfo,
-          createdAt: new Date(),
-        });
-      } else {
-        setError(response.error || 'Failed to book appointment');
-      }
-
-      return response;
+      return applyAssistantResponse(response);
     } catch (err) {
-      setError(err.message || 'Error booking appointment');
-      console.error('Book appointment error:', err);
+      setError(err.message || 'Failed to submit approval');
+      throw err;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pendingApproval, sessionId, applyAssistantResponse]);
 
-  /**
-   * Call emergency ambulance
-   */
-  const callAmbulance = useCallback(async (latitude, longitude, options = {}) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await ChatAgentService.callAmbulance(latitude, longitude, options);
-      setAgentResult(response);
-
-      if (response.result?.success) {
-        const emergencyInfo = response.result.data;
-        appendMessage({
-          id: `ambulance-${response.task_id}`,
-          role: 'system',
-          content: `🚑 Emergency services dispatched. ${emergencyInfo.message}`,
-          agentData: emergencyInfo,
-          createdAt: new Date(),
-        });
-      } else {
-        setError(response.error || 'Failed to call ambulance');
-      }
-
-      return response;
-    } catch (err) {
-      setError(err.message || 'Error calling ambulance');
-      console.error('Call ambulance error:', err);
-    } finally {
-      setLoading(false);
+  const requestAppointment = useCallback(async (clinic, appointmentDate, appointmentReason) => {
+    const clinicId = clinic?.clinic_id || clinic?.id;
+    if (!clinicId) {
+      setError('Please select a clinic first.');
+      return null;
     }
-  }, []);
 
-  /**
-   * Load previous session messages
-   */
+    const safeNotes = String(appointmentReason || '').replace(/\s+/g, ' ').trim();
+    const message = `[appointment_request] clinic_id=${clinicId} preferred_datetime=${appointmentDate}${safeNotes ? ` notes=${safeNotes}` : ''}`;
+    const displayMessage = `Request an appointment at ${clinic.name || 'the selected clinic'} for ${appointmentDate}.`;
+    return sendStructuredMessage(message, displayMessage);
+  }, [sendStructuredMessage]);
+
+  const requestReminder = useCallback(async (title, remindAt, context = '') => {
+    if (!title || !remindAt) {
+      setError('Reminder title and time are required.');
+      return null;
+    }
+    const safeTitle = String(title).replace(/\s+/g, ' ').trim();
+    const safeContext = String(context || '').replace(/\s+/g, ' ').trim();
+    const message = `[reminder_request] title=${safeTitle} remind_at=${remindAt}${safeContext ? ` context=${safeContext}` : ''}`;
+    return sendStructuredMessage(message, `Create a reminder: ${safeTitle} at ${remindAt}.`);
+  }, [sendStructuredMessage]);
+
   const loadSessionMessages = useCallback(async (sid) => {
     setLoading(true);
     setError(null);
 
     try {
       const response = await ChatAgentService.getSessionMessages(sid);
+      const history = Array.isArray(response) ? response : (response.messages || []);
       setSessionId(sid);
-      setMessages(response.messages.map(msg => ({
+      setMessages(history.map(msg => ({
         id: msg.id,
         role: msg.role,
-        content: msg.content,
+        content: msg.message || msg.content,
         createdAt: new Date(msg.created_at),
       })));
     } catch (err) {
@@ -234,48 +182,27 @@ export const useChatAgent = () => {
     }
   }, []);
 
-  /**
-   * Close current session
-   */
-  const closeSession = useCallback(async () => {
-    if (!sessionId) return;
-
-    try {
-      await ChatAgentService.closeSession(sessionId);
-      setSessionId(null);
-      setMessages([]);
-    } catch (err) {
-      setError(err.message || 'Failed to close session');
-      console.error('Close session error:', err);
-    }
-  }, [sessionId]);
-
-  /**
-   * Clear messages and start new session
-   */
   const clearMessages = useCallback(() => {
     setMessages([]);
     setSessionId(null);
     setError(null);
-    setAgentResult(null);
+    setPendingApproval(null);
+    setReminderPrompt(null);
   }, []);
 
   return {
-    // State
     sessionId,
     messages,
     loading,
     error,
-    agentResult,
-    messagesEndRef,
-
-    // Actions
+    pendingApproval,
+    reminderPrompt,
     sendMessage,
     findNearbyClinics,
-    bookAppointment,
-    callAmbulance,
+    submitApproval,
+    requestAppointment,
+    requestReminder,
     loadSessionMessages,
-    closeSession,
     clearMessages,
     setError,
   };

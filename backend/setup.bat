@@ -84,7 +84,7 @@ if not exist ".env" (
     echo.
     echo Please create a .env file with:
     echo   GROQ_API_KEY=your_groq_api_key
-    echo   DATABASE_URL=postgresql://user:password@localhost/mindsentry
+    echo   DATABASE_URL=sqlite:///./mindsentry.db
     echo.
     echo Get GROQ API key from: https://console.groq.com
     pause

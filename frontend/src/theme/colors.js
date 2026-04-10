@@ -1,13 +1,13 @@
 export const colors = {
   // Light mode backgrounds
-  background: '#F2F5FF',
-  surface: '#F1F4F9',
+  background: '#F7F9FC',
+  surface: '#EEF3F8',
   card: '#FFFFFF',
 
   // Primary branding (deep indigo) and complementary accents
-  primary: '#6D28D9',
-  secondary: '#FB7185',
-  accent: '#06B6D4',
+  primary: '#2563EB',
+  secondary: '#0F766E',
+  accent: '#0891B2',
 
   // Text colors
   textPrimary: '#0F172A',
@@ -25,22 +25,22 @@ export const colors = {
   // Utility vibrant colors (for small UI accents)
   vibrantBlue: '#3B82F6',
   vibrantGreen: '#14B8A6',
-  vibrantPurple: '#8B5CF6',
-  vibrantPink: '#FB7185',
+  vibrantPurple: '#4F46E5',
+  vibrantPink: '#E11D48',
 
   // Gradient tokens for hero / CTA backgrounds
-  gradientStart: '#7C3AED',
-  gradientMid: '#6D28D9',
-  gradientEnd: '#06B6D4',
+  gradientStart: '#2563EB',
+  gradientMid: '#1D4ED8',
+  gradientEnd: '#0891B2',
 
   // Subtle card gradients / tints used for elevated surfaces
-  cardGradientLight: 'rgba(79, 70, 229, 0.06)',
-  cardGradientDark: 'rgba(6, 182, 212, 0.06)',
+  cardGradientLight: 'rgba(37, 99, 235, 0.06)',
+  cardGradientDark: 'rgba(8, 145, 178, 0.06)',
 
   // Light tints for backgrounds
-  primaryTint: 'rgba(79, 70, 229, 0.08)',
-  secondaryTint: 'rgba(251, 113, 133, 0.06)',
-  accentTint: 'rgba(6, 182, 212, 0.06)',
+  primaryTint: 'rgba(37, 99, 235, 0.08)',
+  secondaryTint: 'rgba(15, 118, 110, 0.08)',
+  accentTint: 'rgba(8, 145, 178, 0.08)',
   successTint: 'rgba(16, 185, 129, 0.06)',
 
   // Shadows & misc

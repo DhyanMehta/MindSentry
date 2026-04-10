@@ -12,6 +12,7 @@ import { TrendsScreen } from '../screens/TrendsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import ChatBotScreen from '../screens/ChatBotScreen';
+import ClinicFinderScreen from '../screens/ClinicFinderScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { SignupScreen } from '../screens/SignupScreen';
 import { CaptureScreen } from '../screens/CaptureScreen';
@@ -155,6 +156,14 @@ export const AppNavigator = () => {
             <Stack.Screen
               name="CheckInScreen"
               component={CheckInScreen}
+              options={{
+                cardStyle: { backgroundColor: colors.background },
+                gestureEnabled: false,
+              }}
+            />
+            <Stack.Screen
+              name="ClinicFinder"
+              component={ClinicFinderScreen}
               options={{
                 cardStyle: { backgroundColor: colors.background },
                 gestureEnabled: false,

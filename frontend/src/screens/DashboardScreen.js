@@ -1,9 +1,8 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, StatusBar, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, StatusBar, useWindowDimensions, RefreshControl } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Animated, { FadeIn, Easing } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors } from '../theme/colors';
 import { ErrorBox } from '../components/ErrorBox';
@@ -21,6 +20,7 @@ export const DashboardScreen = () => {
 
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [screenError, setScreenError] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [summary, setSummary] = useState(null);
   const [trend, setTrend] = useState([]);
   const [recentAssessments, setRecentAssessments] = useState([]);
@@ -110,9 +110,13 @@ export const DashboardScreen = () => {
     navigation.navigate('CheckInScreen', { assessmentId: assessment?.id });
   }, [navigation]);
 
-  const loadData = useCallback(async () => {
-    setIsLoadingData(true);
-    setScreenError('');
+  const loadData = useCallback(async ({ silent = false } = {}) => {
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoadingData(true);
+    }
+
     try {
       const [summaryData, trendData, assessmentData] = await Promise.all([
         ApiService.getHistorySummary(),
@@ -132,27 +136,42 @@ export const DashboardScreen = () => {
       console.log('[Dashboard] Load error:', error.message);
       setScreenError(error.message || 'Could not load dashboard data. Please try again.');
     } finally {
-      setIsLoadingData(false);
+      if (silent) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoadingData(false);
+      }
     }
   }, [preloadAnalysis]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Refresh when screen is focused and keep data fresh while user stays on screen.
+  // Refresh quietly when the screen regains focus so changes show up immediately
+  // without a visible full-card reload loop.
   useFocusEffect(
     useCallback(() => {
-      loadData();
-      const interval = setInterval(() => {
-        loadData();
-      }, 20000);
-      return () => clearInterval(interval);
-    }, [loadData])
+      if (!isLoadingData) {
+        loadData({ silent: true });
+      }
+      return undefined;
+    }, [isLoadingData, loadData])
   );
 
   const userName = user?.name ? user.name.split(' ')[0] : 'Back';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={() => loadData({ silent: true })}
+          tintColor={colors.primary}
+        />
+      }
+    >
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
       {/* Header */}
@@ -176,14 +195,10 @@ export const DashboardScreen = () => {
 
       {/* Hero Card */}
       <Animated.View entering={FadeIn.duration(400).easing(Easing.out(Easing.cubic))}>
-        <LinearGradient
-          colors={[colors.gradientStart || '#6D28D9', colors.gradientMid || '#A855F7']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={styles.heroCard}
-        >
+        <View style={styles.heroCard}>
           <View style={styles.heroMainContent}>
             {isLoadingData
-              ? <ActivityIndicator color="#fff" size="large" />
+              ? <ActivityIndicator color={colors.primary} size="large" />
               : <>
                 <Text style={styles.heroScore}>{wellnessScore}</Text>
                 <Text style={styles.heroLabel}>Mental Wellness Score</Text>
@@ -196,7 +211,7 @@ export const DashboardScreen = () => {
               ? `Based on ${summary.completed_assessments} completed sessions`
               : 'Complete a check-in to see your score'}
           </Text>
-        </LinearGradient>
+        </View>
       </Animated.View>
 
       <Animated.View entering={FadeIn.duration(400).delay(100).easing(Easing.out(Easing.cubic))}>
@@ -237,7 +252,7 @@ export const DashboardScreen = () => {
           </Pressable>
           <Pressable style={[styles.quickActionButton, styles.secondaryAction]} onPress={() => navigation.navigate('ChatBot')}>
             <Ionicons name="chatbubbles-outline" size={20} color={colors.textPrimary} style={styles.actionIcon} />
-            <Text style={styles.actionTitleSecondary}>AarogyaAI</Text>
+            <Text style={styles.actionTitleSecondary}>ArogyaAI</Text>
           </Pressable>
         </View>
       </Animated.View>
@@ -329,13 +344,16 @@ const styles = StyleSheet.create({
   heroCard: {
     borderRadius: 24, padding: responsiveSize.xl, minHeight: 180,
     marginHorizontal: responsiveSize.lg, marginBottom: responsiveSize.xl,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10,
+    shadowColor: colors.shadow, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.08, shadowRadius: 18, elevation: 5,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
   heroMainContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: responsiveSize.lg },
-  heroScore: { fontSize: 42, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  heroLabel: { color: 'rgba(255,255,255,0.95)', fontSize: fontSize.body, fontWeight: '600', letterSpacing: 0.2 },
-  heroMoodLabel: { marginTop: 8, color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
-  heroFooter: { color: 'rgba(255,255,255,0.8)', fontSize: fontSize.small, textAlign: 'center', letterSpacing: 0.1 },
+  heroScore: { fontSize: 42, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.5 },
+  heroLabel: { color: colors.textSecondary, fontSize: fontSize.body, fontWeight: '600', letterSpacing: 0.2 },
+  heroMoodLabel: { marginTop: 8, color: colors.primary, fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
+  heroFooter: { color: colors.textSecondary, fontSize: fontSize.small, textAlign: 'center', letterSpacing: 0.1 },
 
   actionsRow: {
     flexDirection: 'row',

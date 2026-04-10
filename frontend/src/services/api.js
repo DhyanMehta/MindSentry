@@ -150,6 +150,8 @@ export const ApiService = {
 
   // ── Questionnaires ────────────────────────────────────────────────────────────
   getQuestionnaireTemplates: () => makeRequest('/questionnaires/templates'),
+  getQuestionnaireQuestions: (templateId) =>
+    makeRequest(`/questionnaires/templates/${templateId}/questions`),
 
   submitQuestionnaire: (assessmentId, templateId, items) =>
     makeRequest('/questionnaires/submit', {

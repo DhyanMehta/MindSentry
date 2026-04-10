@@ -9,6 +9,7 @@ export const AuthService = {
   // Token storage keys
   ACCESS_TOKEN_KEY: 'mindsentry_access_token',
   USER_DATA_KEY: 'mindsentry_user_data',
+  normalizeEmail: (email) => (email || '').trim().toLowerCase(),
 
   /**
    * Registers a new user account
@@ -19,10 +20,12 @@ export const AuthService = {
    */
   signup: async (name, email, password, confirmPassword) => {
     try {
+      const normalizedEmail = AuthService.normalizeEmail(email);
       const { data } = await requestJson('/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, confirmPassword }),
+        body: JSON.stringify({ name: name.trim(), email: normalizedEmail, password, confirmPassword }),
+        suppressErrorStatuses: [400],
       });
 
       // Backend returns: { user: {id, email}, access_token, token_type }
@@ -34,7 +37,6 @@ export const AuthService = {
         accessToken: data.access_token,
       };
     } catch (error) {
-      console.error('Signup error:', error);
       throw error;
     }
   },
@@ -47,10 +49,12 @@ export const AuthService = {
    */
   login: async (email, password) => {
     try {
+      const normalizedEmail = AuthService.normalizeEmail(email);
       const { data } = await requestJson('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
+        suppressErrorStatuses: [401],
       });
 
       // Backend returns: { user: {id, email}, access_token, token_type }
@@ -62,7 +66,6 @@ export const AuthService = {
         accessToken: data.access_token,
       };
     } catch (error) {
-      console.error('Login error:', error);
       throw error;
     }
   },
@@ -85,6 +88,7 @@ export const AuthService = {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`,
         },
+        suppressErrorStatuses: [401],
       });
 
       // Backend returns: { id, email }
@@ -92,7 +96,6 @@ export const AuthService = {
 
       return userData;
     } catch (error) {
-      console.error('Get current user error:', error);
       throw error;
     }
   },
@@ -190,9 +193,15 @@ export const AuthService = {
     try {
       const accessToken = await AuthService.getAccessToken();
       const userData = await AuthService.getUserData();
-      return !!(accessToken && userData);
+      if (!(accessToken && userData)) {
+        return false;
+      }
+
+      await AuthService.getCurrentUser();
+      return true;
     } catch (error) {
       console.error('Error checking session:', error);
+      await AuthService.logout();
       return false;
     }
   },

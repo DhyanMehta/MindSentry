@@ -5,8 +5,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { colors } from '../theme/colors';
 import { SectionHeader } from '../components/SectionHeader';
@@ -88,10 +87,14 @@ export const InsightsScreen = () => {
     return Math.round(((1 - stress) * 0.45 + mood * 0.55) * 100);
   };
 
-  const loadInsights = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setIsRefreshing(true);
-    else setIsLoading(true);
-    setScreenError('');
+  const loadInsights = useCallback(async ({ refresh = false, silent = false } = {}) => {
+    if (silent) {
+      setIsRefreshing(true);
+    } else if (refresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
 
     try {
       // Get recent assessments
@@ -158,12 +161,23 @@ export const InsightsScreen = () => {
       setHistoryRows([]);
       setScreenError(err.message || 'Could not load insights. Pull down to retry.');
     } finally {
-      setIsLoading(false);
       setIsRefreshing(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => { loadInsights(); }, [loadInsights]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isLoading) {
+        loadInsights({ silent: true });
+      }
+      return undefined;
+    }, [isLoading, loadInsights])
+  );
 
   const getStatusColor = (status) => {
     if (status === 'positive') return colors.success;
@@ -195,7 +209,7 @@ export const InsightsScreen = () => {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={() => loadInsights(true)}
+            onRefresh={() => loadInsights({ refresh: true })}
             tintColor={colors.primary}
           />
         }
@@ -214,11 +228,7 @@ export const InsightsScreen = () => {
 
         {/* Summary Banner */}
         <Animated.View>
-          <LinearGradient
-            colors={[colors.primary, '#8B5CF6']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.summaryCard}
-          >
+          <View style={styles.summaryCard}>
             <View>
               <Text style={styles.summaryTitle}>
                 {totalSessions > 0 ? 'AI Monitoring Active' : 'Start Your Journey'}
@@ -229,8 +239,10 @@ export const InsightsScreen = () => {
                   : 'Complete a check-in to see personalized insights.'}
               </Text>
             </View>
-            <Ionicons name="pulse" size={48} color="rgba(255,255,255,0.2)" />
-          </LinearGradient>
+            <View style={styles.summaryIconWrap}>
+              <Ionicons name="pulse" size={28} color={colors.primary} />
+            </View>
+          </View>
         </Animated.View>
 
         {/* Filter Pills */}
@@ -358,10 +370,21 @@ const styles = StyleSheet.create({
   summaryCard: {
     borderRadius: 20, padding: 24, marginBottom: 24,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 8,
+    shadowColor: colors.shadow, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 3,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
-  summaryTitle: { fontSize: fontSize.h5, color: '#FFFFFF', fontWeight: '800', marginBottom: 6 },
-  summarySubtitle: { fontSize: fontSize.small, color: 'rgba(255,255,255,0.9)', maxWidth: 220, lineHeight: 20 },
+  summaryTitle: { fontSize: fontSize.h5, color: colors.textPrimary, fontWeight: '800', marginBottom: 6 },
+  summarySubtitle: { fontSize: fontSize.small, color: colors.textSecondary, maxWidth: 220, lineHeight: 20 },
+  summaryIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryTint,
+  },
 
   filterScrollContent: { paddingBottom: 20, paddingHorizontal: 4 },
   filterChip: {

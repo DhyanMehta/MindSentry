@@ -1,5 +1,6 @@
 import React, { createContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import { AuthService } from '../services/authService';
+import { requestEssentialPermissionsForUser } from '../utils/permissionBootstrap';
 
 /**
  * AuthContext provides global authentication state and methods
@@ -69,6 +70,7 @@ export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   const navigationRef = useRef();
+  const permissionBootstrapUserRef = useRef(null);
 
   // Initialize auth state on app startup
   useEffect(() => {
@@ -104,6 +106,23 @@ export const AuthProvider = ({ children }) => {
 
     bootstrapAsync();
   }, []);
+
+  useEffect(() => {
+    const runPermissionBootstrap = async () => {
+      const userId = state?.user?.id;
+      if (!state.userToken || !userId) return;
+      if (permissionBootstrapUserRef.current === userId) return;
+
+      permissionBootstrapUserRef.current = userId;
+      try {
+        await requestEssentialPermissionsForUser(userId);
+      } catch (error) {
+        console.warn('[Permissions] Auth permission bootstrap failed:', error?.message || error);
+      }
+    };
+
+    runPermissionBootstrap();
+  }, [state.userToken, state.user?.id]);
 
   // Auth context actions
   const authContext = {

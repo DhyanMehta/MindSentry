@@ -1,62 +1,77 @@
-import { Platform, PermissionsAndroid } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import * as Location from 'expo-location';
 import { Camera } from 'expo-camera';
 import { Audio } from 'expo-av';
 
 /**
- * Requests core local permissions at app startup.
- * Keeps failures non-blocking so app still opens.
+ * Requests only the essential wellness permissions after the user is authenticated.
+ * This avoids prompting anonymous users and keeps the permission set intentionally small.
  */
-export const requestStartupPermissions = async () => {
-    const result = {
-        location: 'unknown',
-        camera: 'unknown',
-        microphone: 'unknown',
-        callPhone: Platform.OS === 'android' ? 'unknown' : 'not_applicable',
-    };
+const PERMISSION_BOOTSTRAP_PREFIX = 'mindsentry_permissions_bootstrapped_v1';
 
-    try {
-        const locationPerm = await Location.requestForegroundPermissionsAsync();
-        result.location = locationPerm.status;
-    } catch (err) {
-        result.location = 'error';
-        console.warn('[Permissions] Location request failed:', err?.message || err);
-    }
+const buildPermissionKey = (userId) => `${PERMISSION_BOOTSTRAP_PREFIX}:${userId}`;
 
-    try {
-        const cameraPerm = await Camera.requestCameraPermissionsAsync();
-        result.camera = cameraPerm.status;
-    } catch (err) {
-        result.camera = 'error';
-        console.warn('[Permissions] Camera request failed:', err?.message || err);
-    }
+export const hasCompletedEssentialPermissionBootstrap = async (userId) => {
+  if (!userId) return false;
+  try {
+    const value = await SecureStore.getItemAsync(buildPermissionKey(userId));
+    return value === 'done';
+  } catch (error) {
+    console.warn('[Permissions] Failed to read bootstrap state:', error?.message || error);
+    return false;
+  }
+};
 
-    try {
-        const micPerm = await Audio.requestPermissionsAsync();
-        result.microphone = micPerm.status;
-    } catch (err) {
-        result.microphone = 'error';
-        console.warn('[Permissions] Microphone request failed:', err?.message || err);
-    }
+const markEssentialPermissionBootstrapDone = async (userId) => {
+  if (!userId) return;
+  try {
+    await SecureStore.setItemAsync(buildPermissionKey(userId), 'done');
+  } catch (error) {
+    console.warn('[Permissions] Failed to store bootstrap state:', error?.message || error);
+  }
+};
 
-    if (Platform.OS === 'android') {
-        try {
-            const granted = await PermissionsAndroid.request(
-                PermissionsAndroid.PERMISSIONS.CALL_PHONE,
-                {
-                    title: 'Phone Call Permission',
-                    message: 'MindSentry uses this to place emergency phone calls when requested by you.',
-                    buttonPositive: 'Allow',
-                    buttonNegative: 'Deny',
-                }
-            );
-            result.callPhone = granted;
-        } catch (err) {
-            result.callPhone = 'error';
-            console.warn('[Permissions] CALL_PHONE request failed:', err?.message || err);
-        }
-    }
+export const requestEssentialPermissionsForUser = async (userId) => {
+  const result = {
+    location: 'unknown',
+    camera: 'unknown',
+    microphone: 'unknown',
+  };
 
-    console.log('[Permissions] Startup permission results:', result);
+  if (!userId) {
     return result;
+  }
+
+  const alreadyBootstrapped = await hasCompletedEssentialPermissionBootstrap(userId);
+  if (alreadyBootstrapped) {
+    return { ...result, skipped: true };
+  }
+
+  try {
+    const locationPerm = await Location.requestForegroundPermissionsAsync();
+    result.location = locationPerm.status;
+  } catch (err) {
+    result.location = 'error';
+    console.warn('[Permissions] Location request failed:', err?.message || err);
+  }
+
+  try {
+    const cameraPerm = await Camera.requestCameraPermissionsAsync();
+    result.camera = cameraPerm.status;
+  } catch (err) {
+    result.camera = 'error';
+    console.warn('[Permissions] Camera request failed:', err?.message || err);
+  }
+
+  try {
+    const micPerm = await Audio.requestPermissionsAsync();
+    result.microphone = micPerm.status;
+  } catch (err) {
+    result.microphone = 'error';
+    console.warn('[Permissions] Microphone request failed:', err?.message || err);
+  }
+
+  await markEssentialPermissionBootstrapDone(userId);
+  console.log('[Permissions] Essential permission results:', result);
+  return result;
 };

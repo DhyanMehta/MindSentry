@@ -10,7 +10,6 @@ import Animated, {
   Easing
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { responsiveSize, fontSize, borderRadius } from '../utils/responsive';
 
@@ -93,15 +92,10 @@ export const OnboardingScreen = () => {
               pressed && styles.buttonPressed
             ]}
           >
-            <LinearGradient
-              colors={[colors.primary, '#7C3AED']} // Purple to deep violet
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientButton}
-            >
+            <View style={styles.primaryButton}>
               <Text style={styles.buttonText}>Get Started</Text>
               <Ionicons name="arrow-forward" size={20} color="#fff" />
-            </LinearGradient>
+            </View>
           </Pressable>
 
           <Text style={styles.loginLink} onPress={() => navigation.replace('Login')}>
@@ -239,13 +233,14 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
     opacity: 0.9,
   },
-  gradientButton: {
+  primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 18,
     borderRadius: 16,
     gap: 12,
+    backgroundColor: colors.primary,
   },
   buttonText: {
     fontSize: 18,

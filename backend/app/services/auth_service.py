@@ -4,13 +4,19 @@ Authentication service layer
 from datetime import datetime
 from typing import Optional
 from sqlmodel import Session, select
+from sqlalchemy import func
 from app.models.user import User
 from app.schemas.user import UserCreate
 from app.core.security import hash_password, verify_password
 
 
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
 def get_user_by_email(session: Session, email: str) -> Optional[User]:
-    statement = select(User).where(User.email == email, User.deleted_at.is_(None))  # type: ignore
+    normalized_email = normalize_email(email)
+    statement = select(User).where(func.lower(User.email) == normalized_email, User.deleted_at.is_(None))  # type: ignore
     return session.exec(statement).first()
 
 
@@ -22,8 +28,8 @@ def get_user_by_id(session: Session, user_id: int) -> Optional[User]:
 def create_user(session: Session, user_data: UserCreate) -> User:
     hashed = hash_password(user_data.password)
     db_user = User(
-        name=user_data.name,
-        email=user_data.email,
+        name=user_data.name.strip(),
+        email=normalize_email(user_data.email),
         hashed_password=hashed,
         birthday=user_data.birthday,
         gender=user_data.gender,
@@ -52,6 +58,10 @@ def authenticate_user(session: Session, email: str, password: str) -> Optional[U
 def update_user(session: Session, user: User, updates: dict) -> User:
     for key, value in updates.items():
         if value is not None:
+            if key == "name" and isinstance(value, str):
+                value = value.strip()
+            if key == "email" and isinstance(value, str):
+                value = normalize_email(value)
             setattr(user, key, value)
     session.add(user)
     session.commit()

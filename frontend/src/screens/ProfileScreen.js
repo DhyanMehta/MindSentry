@@ -8,6 +8,7 @@ import { SectionHeader } from '../components/SectionHeader';
 import { ErrorBox } from '../components/ErrorBox';
 import { AuthContext } from '../context/AuthContext';
 import { responsiveSize, fontSize } from '../utils/responsive';
+import { navigateToDashboard } from '../navigation/navigationHelpers';
 
 export const ProfileScreen = ({ navigation }) => {
     const { user, signout } = useContext(AuthContext);
@@ -25,7 +26,8 @@ export const ProfileScreen = ({ navigation }) => {
     }, [user]);
 
     const actionItems = [
-        { key: 'chat', title: 'AarogyaAI Chat', subtitle: 'Continue your conversation', icon: 'chatbubbles-outline', onPress: () => navigation.navigate('ChatBot') },
+        { key: 'chat', title: 'ArogyaAI Chat', subtitle: 'Continue your wellness conversation', icon: 'chatbubbles-outline', onPress: () => navigation.navigate('ChatBot') },
+        { key: 'clinics', title: 'Clinic Finder', subtitle: 'Search nearby clinics and request appointments', icon: 'location-outline', onPress: () => navigation.navigate('ClinicFinder') },
         { key: 'history', title: 'Analysis History', subtitle: 'View sessions and insights', icon: 'time-outline', onPress: () => navigation.navigate('Insights') },
         { key: 'support', title: 'Support & Resources', subtitle: 'Get help and crisis resources', icon: 'heart-outline', onPress: () => navigation.navigate('Support') },
         { key: 'capture', title: 'Capture Data', subtitle: 'Run voice and face capture', icon: 'scan-outline', onPress: () => navigation.navigate('CaptureScreen') },
@@ -49,7 +51,7 @@ export const ProfileScreen = ({ navigation }) => {
                 <SectionHeader
                     title="Profile"
                     showBack
-                    onBackPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Dashboard'))}
+                    onBackPress={() => (navigation.canGoBack() ? navigation.goBack() : navigateToDashboard(navigation))}
                 />
             </Animated.View>
 
@@ -92,14 +94,14 @@ export const ProfileScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    container: { flex: 1, backgroundColor: colors.background },
     content: { paddingTop: responsiveSize.lg, paddingHorizontal: responsiveSize.lg, paddingBottom: responsiveSize.lg },
     errorBoxWrap: { marginBottom: 12 },
     profileCard: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: colors.divider,
         padding: 20,
         alignItems: 'center',
         marginBottom: responsiveSize.lg,
@@ -117,10 +119,10 @@ const styles = StyleSheet.create({
     nameText: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
     emailText: { marginTop: 4, fontSize: 13, color: colors.textSecondary },
     actionSection: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: colors.divider,
         paddingVertical: 8,
         marginBottom: responsiveSize.lg,
     },

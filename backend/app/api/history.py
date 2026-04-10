@@ -62,8 +62,9 @@ def risk_trend(
         logger.debug(f"Fetching risk trend for user {current_user.id}: limit={limit}")
         scores = session.exec(
             select(RiskScore)
+            .join(Assessment, Assessment.id == RiskScore.assessment_id)
             .where(RiskScore.user_id == current_user.id)
-            .order_by(RiskScore.id.desc())
+            .order_by(Assessment.completed_at.desc(), Assessment.started_at.desc())
             .limit(limit)
         ).all()
         logger.debug(f"Found {len(scores)} risk scores for user {current_user.id}")

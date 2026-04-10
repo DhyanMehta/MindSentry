@@ -2,6 +2,19 @@ import { API_CONFIG, buildApiUrl } from '../config/apiConfig';
 
 const DEFAULT_TIMEOUT_MS = API_CONFIG.TIMEOUT;
 
+const shouldSuppressFailureLog = (options = {}, statusCode) => {
+    if (options.suppressErrorLog) {
+        return true;
+    }
+
+    if (statusCode == null) {
+        return false;
+    }
+
+    const suppressedStatuses = options.suppressErrorStatuses || [];
+    return suppressedStatuses.includes(statusCode);
+};
+
 const safeJsonParse = (value) => {
     try {
         return JSON.parse(value);
@@ -54,14 +67,16 @@ export const requestJson = async (endpoint, options = {}) => {
             );
             err.status = response.status;
             err.body = parsedBody ?? rawBody;
-            logApiFailure({
-                endpoint,
-                fullUrl,
-                method,
-                statusCode: response.status,
-                responseBody: err.body,
-                error: err,
-            });
+            if (!shouldSuppressFailureLog(options, response.status)) {
+                logApiFailure({
+                    endpoint,
+                    fullUrl,
+                    method,
+                    statusCode: response.status,
+                    responseBody: err.body,
+                    error: err,
+                });
+            }
             throw err;
         }
 
@@ -76,14 +91,16 @@ export const requestJson = async (endpoint, options = {}) => {
             ? new Error(`Request timed out after ${options.timeoutMs || DEFAULT_TIMEOUT_MS}ms`)
             : error;
 
-        logApiFailure({
-            endpoint,
-            fullUrl,
-            method,
-            statusCode: error?.status,
-            responseBody: error?.body,
-            error: wrappedError,
-        });
+        if ((isAbort || error?.status == null) && !shouldSuppressFailureLog(options, error?.status)) {
+            logApiFailure({
+                endpoint,
+                fullUrl,
+                method,
+                statusCode: error?.status,
+                responseBody: error?.body,
+                error: wrappedError,
+            });
+        }
 
         throw wrappedError;
     }
@@ -113,14 +130,16 @@ export const requestFormData = async (endpoint, formData, options = {}) => {
             );
             err.status = response.status;
             err.body = parsedBody ?? rawBody;
-            logApiFailure({
-                endpoint,
-                fullUrl,
-                method,
-                statusCode: response.status,
-                responseBody: err.body,
-                error: err,
-            });
+            if (!shouldSuppressFailureLog(options, response.status)) {
+                logApiFailure({
+                    endpoint,
+                    fullUrl,
+                    method,
+                    statusCode: response.status,
+                    responseBody: err.body,
+                    error: err,
+                });
+            }
             throw err;
         }
 
@@ -135,14 +154,16 @@ export const requestFormData = async (endpoint, formData, options = {}) => {
             ? new Error(`Request timed out after ${options.timeoutMs || DEFAULT_TIMEOUT_MS}ms`)
             : error;
 
-        logApiFailure({
-            endpoint,
-            fullUrl,
-            method,
-            statusCode: error?.status,
-            responseBody: error?.body,
-            error: wrappedError,
-        });
+        if ((isAbort || error?.status == null) && !shouldSuppressFailureLog(options, error?.status)) {
+            logApiFailure({
+                endpoint,
+                fullUrl,
+                method,
+                statusCode: error?.status,
+                responseBody: error?.body,
+                error: wrappedError,
+            });
+        }
 
         throw wrappedError;
     }

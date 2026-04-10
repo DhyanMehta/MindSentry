@@ -15,7 +15,6 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import Animated, { FadeIn, Easing } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "../theme/colors";
 import { AuthContext } from "../context/AuthContext";
 import { responsiveSize, fontSize, borderRadius } from "../utils/responsive";
@@ -58,7 +57,7 @@ export const LoginScreen = () => {
   const handleLogin = async () => {
     if (!validateInputs()) return;
 
-    const result = await signin(email, password);
+    const result = await signin(email.trim(), password);
     if (result.success) {
       console.log("Login successful!");
     }
@@ -163,18 +162,13 @@ export const LoginScreen = () => {
             style={({ pressed }) => [styles.buttonShadow, pressed && styles.buttonPressed]}
             disabled={isLoading}
           >
-            <LinearGradient
-              colors={[colors.primary, '#7C3AED']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientButton}
-            >
+            <View style={styles.primaryButton}>
               {isLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.buttonText}>Log In</Text>
               )}
-            </LinearGradient>
+            </View>
           </Pressable>
 
           {/* Footer Links */}
@@ -348,11 +342,12 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
     opacity: 0.9,
   },
-  gradientButton: {
+  primaryButton: {
     height: 54,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.primary,
   },
   buttonText: {
     color: '#fff',

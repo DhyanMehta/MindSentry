@@ -18,10 +18,10 @@ class Settings(BaseSettings):
         description="Deployment environment: development, staging, production"
     )
 
-    # Database - Load from environment, with sensible defaults for development
+    # Database - locked to the project SQLite file
     database_url: str = Field(
-        default="sqlite:///./dev.db",
-        description="Database URL. Format: postgresql+psycopg://user:password@host:port/dbname"
+        default="sqlite:///./mindsentry.db",
+        description="Database URL (must point to mindsentry.db)"
     )
 
     # JWT Settings - Secret key MUST come from environment in production
@@ -37,18 +37,73 @@ class Settings(BaseSettings):
         default="",
         description="Hugging Face API key for text emotion analysis"
     )
+    huggingface_timeout_seconds: float = Field(
+        default=45.0,
+        description="Timeout for hosted Hugging Face inference requests"
+    )
+    huggingface_max_retries: int = Field(
+        default=1,
+        description="Retry count for transient Hugging Face inference failures"
+    )
+    huggingface_text_model: str = Field(
+        default="j-hartmann/emotion-english-distilroberta-base",
+        description="Hosted Hugging Face model for text emotion inference"
+    )
+    huggingface_asr_model: str = Field(
+        default="openai/whisper-large-v3-turbo",
+        description="Hosted Hugging Face model for speech transcription"
+    )
+    huggingface_audio_emotion_model: str = Field(
+        default="ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition",
+        description="Hosted Hugging Face model for audio emotion inference"
+    )
+    huggingface_face_emotion_model: str = Field(
+        default="dima806/facial_emotions_image_detection",
+        description="Hosted Hugging Face model for facial emotion inference"
+    )
 
-    # Groq API (LLM for agent reasoning and RAG)
+    # Groq API (LLM provider)
     groq_api_key: str = Field(
         default="",
-        description="Groq API key for LLM-powered features"
+        description="Groq API key for assistant reasoning"
     )
     groq_model: str = Field(
         default="llama-3.1-8b-instant",
-        description="Groq model name for chatbot/agent inference"
+        description="Groq model name for assistant inference"
+    )
+    assistant_llm_timeout_seconds: float = Field(
+        default=12.0,
+        description="Timeout for assistant LLM requests before falling back"
+    )
+    assistant_recent_message_limit: int = Field(
+        default=4,
+        description="How many recent chat turns to include in assistant prompts"
     )
 
-    # Google Maps API (optional for advanced location features)
+    # LangGraph assistant settings
+    assistant_api_version: str = Field(
+        default="v3",
+        description="Assistant API version label"
+    )
+
+    # Clinic search provider
+    google_places_api_key: str = Field(
+        default="",
+        description="Google Places API key for clinic search"
+    )
+
+    # Twilio provider
+    twilio_account_sid: str = Field(default="", description="Twilio Account SID")
+    twilio_auth_token: str = Field(default="", description="Twilio auth token")
+    twilio_from_number: str = Field(default="", description="Twilio source phone number")
+
+    # Reminder provider
+    calendar_provider_api_key: str = Field(
+        default="",
+        description="Calendar/reminder provider API key"
+    )
+
+    # Google Maps API (optional for general maps features)
     google_maps_api_key: str = Field(
         default="",
         description="Google Maps API key (optional)"
@@ -57,14 +112,12 @@ class Settings(BaseSettings):
     @field_validator("database_url", mode="after")
     @classmethod
     def validate_database_url(cls, v, info):
-        """Validate database URL based on environment"""
-        # For production, reject in-memory or local sqlite databases
-        if info.data.get("environment") == "production" or not info.data.get("debug"):
-            if not v or "memory" in v or "sqlite" in v:
-                raise ValueError(
-                    "Production database must be PostgreSQL. Set DATABASE_URL environment variable. "
-                    "Format: postgresql+psycopg://user:password@host:port/dbname"
-                )
+        """Enforce single-database policy: use mindsentry.db only."""
+        if not v or "sqlite" not in v or "mindsentry.db" not in v:
+            raise ValueError(
+                "Database is locked to sqlite:///./mindsentry.db. "
+                "Set DATABASE_URL=sqlite:///./mindsentry.db"
+            )
         return v
 
     @field_validator("secret_key", mode="after")

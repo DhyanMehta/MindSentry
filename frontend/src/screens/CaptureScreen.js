@@ -6,13 +6,12 @@ import Animated, {
   useAnimatedStyle, withRepeat, withSequence, withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors } from '../theme/colors';
 import { responsiveSize, fontSize } from '../utils/responsive';
 import { SectionHeader } from '../components/SectionHeader';
 import { ErrorBox } from '../components/ErrorBox';
-import { ApiService } from '../services/api';
+import { AssessmentService } from '../services/assessmentService';
 
 const RISK_COLORS = {
   low: colors.success,
@@ -40,7 +39,8 @@ const PulsingDot = () => {
   return <Animated.View style={[styles.pulseDot, anim]} />;
 };
 
-export const CaptureScreen = ({ navigation }) => {
+export const CaptureScreen = ({ navigation, route }) => {
+  const activeAssessmentId = route?.params?.assessmentId || null;
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [hasAudioPerm, setHasAudioPerm] = useState(null);
 
@@ -134,29 +134,13 @@ export const CaptureScreen = ({ navigation }) => {
     try {
       setProcessingStage(PROCESS_STAGES[0]);
 
-      // Capture is a separate flow from daily check-ins
-      const assessment = await ApiService.createAssessment('checkin', 'Multi-modal capture session');
-      const assessmentId = assessment.id;
-
-      // Upload audio if available
-      if (audioUri) {
-        setProcessingStage(PROCESS_STAGES[1]);
-        await ApiService.uploadAudio(assessmentId, audioUri);
-      }
-
-      // Upload photo if available
-      if (capturedPhoto) {
-        setProcessingStage(PROCESS_STAGES[2]);
-        await ApiService.uploadPhoto(assessmentId, capturedPhoto);
-      }
-
-      // Run analysis
       setProcessingStage(PROCESS_STAGES[3]);
-      const analysisResult = await ApiService.runAnalysis(assessmentId);
-
       setProcessingStage(PROCESS_STAGES[4]);
-      const risk = await ApiService.getRiskScore(assessmentId);
-      const recs = await ApiService.getRecommendations(assessmentId);
+      const { result: analysisResult, risk, recommendations: recs } = await AssessmentService.performCapture({
+        assessmentId: activeAssessmentId,
+        audioUri,
+        photoUri: capturedPhoto,
+      });
 
       setResult(analysisResult);
       setRiskScore(risk || null);
@@ -296,14 +280,10 @@ export const CaptureScreen = ({ navigation }) => {
 
         <Animated.View>
           <Pressable onPress={() => navigation.goBack()} style={styles.doneButton}>
-            <LinearGradient
-              colors={[colors.primary, '#7C3AED']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={styles.doneGradient}
-            >
+            <View style={styles.donePrimary}>
               <Text style={styles.doneText}>Done</Text>
               <Ionicons name="checkmark" size={20} color="#fff" style={{ marginLeft: 8 }} />
-            </LinearGradient>
+            </View>
           </Pressable>
         </Animated.View>
 
@@ -619,6 +599,6 @@ const styles = StyleSheet.create({
   recCardTitle2: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
   recCardDesc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
   doneButton: { borderRadius: 16, overflow: 'hidden', shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
-  doneGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16 },
+  donePrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, backgroundColor: colors.primary },
   doneText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
