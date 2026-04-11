@@ -20,6 +20,7 @@ router = APIRouter(prefix="", tags=["assistant-chat-v2"])
 class ChatV2Request(BaseModel):
     message: str = Field(min_length=1, max_length=5000)
     source: Optional[str] = None
+    session_id: Optional[str] = Field(default=None, max_length=128)
 
 
 @router.post("/chat-v2")
@@ -33,16 +34,23 @@ def chat_v2(
         "input": req.message,
         "user_id": current_user.id,
         "source": req.source,
+        "session_id": req.session_id,
     }
 
     result = service.invoke(state)
     output = result.get("output")
     response_text = getattr(output, "content", None) or str(output)
+    data_payload = None
+    if isinstance(output, dict):
+        response_text = str(output.get("response", ""))
+        data_payload = output.get("data")
 
     return {
         "response": response_text,
+        "data": data_payload,
         "intent_data": result.get("intent_data"),
         "context": result.get("context"),
         "source": req.source,
+        "session_id": req.session_id,
         "llm_provider": result.get("llm_provider"),
     }
