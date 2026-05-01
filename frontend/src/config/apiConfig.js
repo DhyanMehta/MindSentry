@@ -8,9 +8,6 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Set this for physical device testing on same Wi-Fi (example: 192.168.1.100)
-// Keep empty to use platform defaults.
-const DEV_LAN_IP = '';
 
 const trimTrailingSlash = (value) => value.replace(/\/+$/, '');
 
@@ -32,7 +29,8 @@ const getConfiguredOverride = () => {
     const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.REACT_APP_API_URL;
     const appJsonUrl = Constants.expoConfig?.extra?.apiUrl;
 
-    const raw = envUrl || appJsonUrl || (DEV_LAN_IP ? `http://${DEV_LAN_IP}:8000` : '');
+    // const raw = envUrl || appJsonUrl || (DEV_LAN_IP ? `http://${DEV_LAN_IP}:8000` : '');
+    const raw = envUrl || appJsonUrl;
     if (!raw || typeof raw !== 'string') return null;
 
     return trimTrailingSlash(raw.trim());

@@ -24,6 +24,9 @@ if db_url.drivername.startswith("sqlite"):
         "check_same_thread": False,
         "timeout": 10,
     }
+    # Use autocommit mode (isolation_level=None) to prevent implicit transactions on read-only queries
+    # This eliminates unnecessary ROLLBACK operations on SELECT statements
+    engine_kwargs["isolation_level"] = None
 
 logger.info(f"Initializing database: {settings.database_url}")
 engine = create_engine(settings.database_url, **engine_kwargs)
@@ -40,9 +43,9 @@ def create_db_and_tables():
         logger.info("? SQLAlchemy tables created")
 
         with Session(engine) as session:
-            from app.services.questionnaire_catalog_service import ensure_daily_checkin_template
-            ensure_daily_checkin_template(session)
-            session.commit()
+            with session.begin():
+                from app.services.questionnaire_catalog_service import ensure_daily_checkin_template
+                ensure_daily_checkin_template(session)
         logger.info("? Assistant schema compatibility check complete")
     except Exception as e:
         logger.error(f"? Error creating database tables: {str(e)}", exc_info=True)
@@ -50,5 +53,11 @@ def create_db_and_tables():
 
 
 def get_session():
+    """Get database session with proper transaction handling.
+    
+    Uses autocommit mode (isolation_level=None) for SQLite to prevent implicit transactions.
+    Each operation is auto-committed unless explicitly wrapped with session.begin().
+    Write operations should use session.begin() to ensure atomicity.
+    """
     with Session(engine) as session:
         yield session

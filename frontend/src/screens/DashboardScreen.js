@@ -90,6 +90,10 @@ export const DashboardScreen = () => {
     const entries = await Promise.all(
       top.map(async (item) => {
         try {
+          // Only try to load analysis results for completed assessments
+          if (item?.status !== 'completed') {
+            return [item.id, null];
+          }
           const result = await ApiService.getAnalysisResult(item.id);
           return [item.id, result];
         } catch {

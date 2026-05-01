@@ -9,7 +9,7 @@ import { Audio } from 'expo-av';
  */
 const PERMISSION_BOOTSTRAP_PREFIX = 'mindsentry_permissions_bootstrapped_v1';
 
-const buildPermissionKey = (userId) => `${PERMISSION_BOOTSTRAP_PREFIX}:${userId}`;
+const buildPermissionKey = (userId) => `${PERMISSION_BOOTSTRAP_PREFIX}_${userId}`;
 
 export const hasCompletedEssentialPermissionBootstrap = async (userId) => {
   if (!userId) return false;

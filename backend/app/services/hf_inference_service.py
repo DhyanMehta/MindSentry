@@ -19,7 +19,7 @@ class HFInferenceError(RuntimeError):
 
 DEFAULT_TEXT_MODEL = "j-hartmann/emotion-english-distilroberta-base"
 DEFAULT_ASR_MODEL = "openai/whisper-large-v3-turbo"
-DEFAULT_AUDIO_EMOTION_MODEL = "ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition"
+DEFAULT_AUDIO_EMOTION_MODEL = "superb/wav2vec2-base-superb-er"
 DEFAULT_FACE_EMOTION_MODEL = "dima806/facial_emotions_image_detection"
 
 
@@ -28,7 +28,7 @@ class HuggingFaceInferenceClient:
         self.settings = get_settings()
         self.base_url = "https://router.huggingface.co/hf-inference/models"
 
-    def _headers(self, *, content_type: str | None = None, accept: str | None = "application/json") -> dict[str, str]:
+    def _headers(self, *, content_type: str | None = None, accept: str | None = "application/json", wait_for_model: bool = False) -> dict[str, str]:
         if not self.settings.huggingface_api_key:
             raise HFInferenceError("HUGGINGFACE_API_KEY not set")
 
@@ -39,6 +39,8 @@ class HuggingFaceInferenceClient:
             headers["Content-Type"] = content_type
         if accept:
             headers["Accept"] = accept
+        if wait_for_model:
+            headers["X-Wait-For-Model"] = "true"
         return headers
 
     def _request(
@@ -49,8 +51,10 @@ class HuggingFaceInferenceClient:
         content: bytes | None = None,
         content_type: str | None = None,
         accept: str | None = "application/json",
+        timeout: float | None = None,
+        wait_for_model: bool = False,
     ) -> Any:
-        timeout = float(self.settings.huggingface_timeout_seconds)
+        timeout = float(timeout if timeout is not None else self.settings.huggingface_timeout_seconds)
         retries = max(0, int(self.settings.huggingface_max_retries))
         url = f"{self.base_url}/{model_id}"
         last_error: Exception | None = None
@@ -59,7 +63,7 @@ class HuggingFaceInferenceClient:
             try:
                 response = httpx.post(
                     url,
-                    headers=self._headers(content_type=content_type, accept=accept),
+                    headers=self._headers(content_type=content_type, accept=accept, wait_for_model=wait_for_model),
                     json=payload,
                     content=content,
                     timeout=timeout,
@@ -76,6 +80,8 @@ class HuggingFaceInferenceClient:
                 if response.status_code == 503:
                     last_error = HFInferenceError("hf_model_loading")
                     continue
+                if 400 <= response.status_code < 500:
+                    raise HFInferenceError(f"hf_http_{response.status_code}:{detail[:160]}")
                 last_error = HFInferenceError(f"hf_http_{response.status_code}:{detail[:160]}")
             except HFInferenceError as exc:
                 last_error = exc
@@ -88,6 +94,7 @@ class HuggingFaceInferenceClient:
         return self._request(
             model_id=model_id or self.settings.huggingface_text_model,
             payload={"inputs": text, "options": {"wait_for_model": True}},
+            timeout=self.settings.huggingface_text_timeout_seconds,
         )
 
     def automatic_speech_recognition(
@@ -101,6 +108,7 @@ class HuggingFaceInferenceClient:
             model_id=model_id or self.settings.huggingface_asr_model,
             content=audio_bytes,
             content_type=content_type,
+            timeout=self.settings.huggingface_asr_timeout_seconds,
         )
 
     def audio_classification(
@@ -114,6 +122,8 @@ class HuggingFaceInferenceClient:
             model_id=model_id or self.settings.huggingface_audio_emotion_model,
             content=audio_bytes,
             content_type=content_type,
+            timeout=self.settings.huggingface_audio_emotion_timeout_seconds,
+            wait_for_model=True,
         )
 
     def image_classification(
@@ -126,6 +136,8 @@ class HuggingFaceInferenceClient:
             model_id=model_id or self.settings.huggingface_face_emotion_model,
             content=image_bytes,
             content_type="image/jpeg",
+            timeout=self.settings.huggingface_face_timeout_seconds,
+            wait_for_model=True,
         )
 
 

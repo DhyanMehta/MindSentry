@@ -2,7 +2,7 @@
 Fusion Neural Network for multimodal risk scoring.
 
 Architecture:
-  Input  : 15 features from text, audio, video, questionnaire modalities
+  Input  : 17 features from text, audio, video, questionnaire modalities
   Hidden : 64 -> 32 -> 16 neurons (ReLU)
   Output : 5 scores — stress, low_mood, burnout, social_withdrawal, crisis
 
@@ -23,21 +23,23 @@ _model = None   # loaded lazily on first predict call
 
 # ── Feature names (must match train_nn.py order exactly) ──────
 FEATURE_NAMES = [
-    "text_stress",       # 0-1  stress derived from text emotion
-    "text_mood",         # 0-1  mood derived from text emotion
-    "audio_stress",      # 0-1  derived from silence + energy
-    "audio_silence",     # 0-1  proportion of silence frames
-    "audio_rms_norm",    # 0-1  RMS energy normalised to [0,1]
-    "video_face",        # 0-1  fraction of frames with face detected
-    "video_lighting",    # 0-1  average frame brightness
-    "q_stress",          # 0-1  questionnaire stress_level / 10
-    "q_mood",            # 0-1  questionnaire mood_level / 10
-    "q_sleep_pen",       # 0-1  sleep deprivation penalty
-    "has_text",          # 0/1  text modality present
-    "has_audio",         # 0/1  audio modality present
-    "has_video",         # 0/1  video modality present
-    "has_q",             # 0/1  questionnaire modality present
-    "n_modalities",      # 0-1  count of available modalities / 4
+    "text_stress",            # 0-1  stress derived from text emotion
+    "text_mood",              # 0-1  mood derived from text emotion
+    "audio_stress",           # 0-1  derived from silence + energy
+    "audio_silence",          # 0-1  proportion of silence frames
+    "audio_rms_norm",         # 0-1  RMS energy normalised to [0,1]
+    "audio_emotion_valence",  # 0-1  audio emotion mapped to valence (0=neg, 0.5=neutral, 1=pos)
+    "video_face",             # 0-1  fraction of frames with face detected
+    "video_lighting",         # 0-1  average frame brightness
+    "video_emotion_valence",  # 0-1  video emotion mapped to valence (0=neg, 0.5=neutral, 1=pos)
+    "q_stress",               # 0-1  questionnaire stress_level / 10
+    "q_mood",                 # 0-1  questionnaire mood_level / 10
+    "q_sleep_pen",            # 0-1  sleep deprivation penalty
+    "has_text",               # 0/1  text modality present
+    "has_audio",              # 0/1  audio modality present
+    "has_video",              # 0/1  video modality present
+    "has_q",                  # 0/1  questionnaire modality present
+    "n_modalities",           # 0-1  count of available modalities / 4
 ]
 
 # ── Output names ───────────────────────────────────────────────
@@ -75,17 +77,21 @@ def explain_dominant_features(feature_vector: list[float], output_scores: Dict[s
 
     contribution_map = {
         "stress_score": {
-            "text_stress": 0.30 * f["text_stress"],
-            "audio_stress": 0.25 * f["audio_stress"],
-            "video_face_inverse": 0.15 * (1.0 - f["video_face"]),
+            "text_stress": 0.25 * f["text_stress"],
+            "audio_stress": 0.20 * f["audio_stress"],
+            "audio_valence_inv": 0.08 * (1.0 - f["audio_emotion_valence"]),
+            "video_face_inverse": 0.12 * (1.0 - f["video_face"]),
+            "video_valence_inv": 0.05 * (1.0 - f["video_emotion_valence"]),
             "q_stress": 0.20 * f["q_stress"],
             "q_sleep_pen": 0.10 * f["q_sleep_pen"],
         },
         "low_mood_score": {
-            "text_mood_inverse": 0.35 * (1.0 - f["text_mood"]),
-            "q_mood_inverse": 0.20 * (1.0 - f["q_mood"]),
-            "q_sleep_pen": 0.20 * f["q_sleep_pen"],
-            "video_lighting_inverse": 0.15 * (1.0 - f["video_lighting"]),
+            "text_mood_inverse": 0.30 * (1.0 - f["text_mood"]),
+            "audio_valence_inv": 0.08 * (1.0 - f["audio_emotion_valence"]),
+            "video_valence_inv": 0.07 * (1.0 - f["video_emotion_valence"]),
+            "q_mood_inverse": 0.18 * (1.0 - f["q_mood"]),
+            "q_sleep_pen": 0.17 * f["q_sleep_pen"],
+            "video_lighting_inverse": 0.10 * (1.0 - f["video_lighting"]),
             "text_stress": 0.10 * f["text_stress"],
         },
         "burnout_score": {
@@ -158,7 +164,7 @@ def build_feature_vector(
     questionnaire_data: Optional[Dict] = None,
 ) -> tuple[list[float], dict]:
     """
-    Build the 15-dim input feature vector from modality dicts.
+    Build the 17-dim input feature vector from modality dicts.
 
     Returns:
         (feature_list, availability_dict)
@@ -218,10 +224,29 @@ def build_feature_vector(
     else:
         q_stress = q_mood = q_sleep_pen = 0.0
 
+    # ── Emotion valence mappings ──────────────────────────────
+    # Maps emotion labels to a 0-1 valence scale (0=very negative, 0.5=neutral, 1=very positive)
+    _EMOTION_VALENCE = {
+        "anger": 0.1, "fear": 0.15, "sadness": 0.05, "disgust": 0.2,
+        "surprise": 0.55, "neutral": 0.5, "joy": 0.9,
+    }
+
+    if has_audio:
+        audio_emo = str(audio_features.get("audio_emotion", "neutral") or "neutral").lower()
+        audio_emotion_valence = _EMOTION_VALENCE.get(audio_emo, 0.5)
+    else:
+        audio_emotion_valence = 0.5
+
+    if has_video:
+        video_emo = str(video_features.get("video_emotion", "neutral") or "neutral").lower()
+        video_emotion_valence = _EMOTION_VALENCE.get(video_emo, 0.5)
+    else:
+        video_emotion_valence = 0.5
+
     features = [
         text_stress, text_mood,
-        audio_stress, silence, rms_norm,
-        video_face, video_lighting,
+        audio_stress, silence, rms_norm, audio_emotion_valence,
+        video_face, video_lighting, video_emotion_valence,
         q_stress, q_mood, q_sleep_pen,
         float(has_text), float(has_audio), float(has_video), float(has_q),
         n_mod,

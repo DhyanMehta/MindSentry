@@ -1,6 +1,8 @@
 import { AuthService } from './authService';
 import { requestJson, requestFormData } from './httpClient';
 
+const MEDIA_UPLOAD_TIMEOUT_MS = 180000;
+
 /**
  * Makes an authenticated JSON API request
  */
@@ -42,7 +44,7 @@ const makeRequest = async (endpoint, options = {}) => {
  * Makes an authenticated multipart/form-data request (for file uploads)
  * Do NOT set Content-Type header — fetch sets it automatically with the boundary
  */
-const makeFormRequest = async (endpoint, formData) => {
+const makeFormRequest = async (endpoint, formData, requestOptions = {}) => {
   const accessToken = await AuthService.getAccessToken();
 
   const headers = {};
@@ -54,6 +56,7 @@ const makeFormRequest = async (endpoint, formData) => {
     const { data, status } = await requestFormData(endpoint, formData, {
       method: 'POST',
       headers,
+      ...requestOptions,
     });
 
     if (status === 401) {
@@ -101,7 +104,9 @@ export const ApiService = {
     const mimeMap = { mp3: 'audio/mpeg', wav: 'audio/wav', aac: 'audio/aac', ogg: 'audio/ogg' };
     const mimeType = mimeMap[ext] || 'audio/mp4';
     formData.append('file', { uri: audioUri, name: filename, type: mimeType });
-    return makeFormRequest(`/audio/upload/${assessmentId}`, formData);
+    return makeFormRequest(`/audio/upload/${assessmentId}`, formData, {
+      timeoutMs: MEDIA_UPLOAD_TIMEOUT_MS,
+    });
   },
 
   getAudioEntry: (assessmentId) => makeRequest(`/audio/${assessmentId}`),
@@ -111,14 +116,18 @@ export const ApiService = {
     const formData = new FormData();
     const filename = photoUri.split('/').pop() || 'photo.jpg';
     formData.append('file', { uri: photoUri, name: filename, type: 'image/jpeg' });
-    return makeFormRequest(`/video/upload/${assessmentId}`, formData);
+    return makeFormRequest(`/video/upload/${assessmentId}`, formData, {
+      timeoutMs: MEDIA_UPLOAD_TIMEOUT_MS,
+    });
   },
 
   uploadVideo: async (assessmentId, videoUri) => {
     const formData = new FormData();
     const filename = videoUri.split('/').pop() || 'capture.mp4';
     formData.append('file', { uri: videoUri, name: filename, type: 'video/mp4' });
-    return makeFormRequest(`/video/upload/${assessmentId}`, formData);
+    return makeFormRequest(`/video/upload/${assessmentId}`, formData, {
+      timeoutMs: MEDIA_UPLOAD_TIMEOUT_MS,
+    });
   },
 
   getVideoEntry: (assessmentId) => makeRequest(`/video/${assessmentId}`),

@@ -175,6 +175,8 @@ def _build_analysis_payload(session: Session, obj: AnalysisResult, scores: dict 
         overall_spoof_risk = scores.get("overall_spoof_risk")
         inference_tracking = {
             "scoring_source": scores.get("scoring_source"),
+            "calibration_source": scores.get("calibration_source"),
+            "distress_calibration_source": scores.get("distress_calibration_source"),
             "model_name": scores.get("model_name"),
             "model_input_features": scores.get("model_input_features") or {},
             "model_output_scores": scores.get("model_output_scores") or {},
@@ -211,6 +213,7 @@ def _build_analysis_payload(session: Session, obj: AnalysisResult, scores: dict 
         "mood_score": obj.mood_score,
         "wellness_score": wellness_score,
         "emotional_distress_score": obj.emotional_distress_score,
+        "final_risk_probability": (inference_tracking or {}).get("model_output_scores", {}).get("crisis_score"),
         "wellness_flag": obj.wellness_flag,
         "support_level": obj.support_level,
         "crisis_flag": obj.crisis_flag,

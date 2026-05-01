@@ -41,6 +41,22 @@ class Settings(BaseSettings):
         default=45.0,
         description="Timeout for hosted Hugging Face inference requests"
     )
+    huggingface_text_timeout_seconds: float = Field(
+        default=20.0,
+        description="Timeout for hosted text emotion inference requests"
+    )
+    huggingface_asr_timeout_seconds: float = Field(
+        default=30.0,
+        description="Timeout for hosted ASR requests"
+    )
+    huggingface_audio_emotion_timeout_seconds: float = Field(
+        default=15.0,
+        description="Timeout for hosted audio emotion requests"
+    )
+    huggingface_face_timeout_seconds: float = Field(
+        default=15.0,
+        description="Timeout for hosted face emotion requests"
+    )
     huggingface_max_retries: int = Field(
         default=1,
         description="Retry count for transient Hugging Face inference failures"
@@ -54,8 +70,28 @@ class Settings(BaseSettings):
         description="Hosted Hugging Face model for speech transcription"
     )
     huggingface_audio_emotion_model: str = Field(
-        default="ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition",
-        description="Hosted Hugging Face model for audio emotion inference"
+        default="superb/wav2vec2-base-superb-er",
+        description="Hosted Hugging Face model for audio emotion inference (primary)"
+    )
+    huggingface_audio_emotion_candidates: str = Field(
+        default="superb/wav2vec2-base-superb-er,speechbrain/emotion-recognition-wav2vec2-IEMOCAP,ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition",
+        description="Comma-separated hosted Hugging Face models to try for audio emotion inference"
+    )
+    huggingface_audio_emotion_local_candidates: str = Field(
+        default="ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition,superb/wav2vec2-base-superb-er",
+        description="Comma-separated local Hugging Face models to try for audio emotion inference"
+    )
+    huggingface_local_model_cache_dir: str = Field(
+        default=".mindsentry_cache/huggingface",
+        description="Local Hugging Face cache directory for one-time model downloads"
+    )
+    huggingface_use_local_audio_cache: bool = Field(
+        default=True,
+        description="Enable local audio model as primary inference path (auto-downloads on first use, cached permanently)"
+    )
+    huggingface_use_local_video_cache: bool = Field(
+        default=True,
+        description="Enable local face emotion model as primary inference path (auto-downloads on first use, cached permanently)"
     )
     huggingface_face_emotion_model: str = Field(
         default="dima806/facial_emotions_image_detection",

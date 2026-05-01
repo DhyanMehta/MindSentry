@@ -15,7 +15,8 @@ venv/
 backend/.mindsentry_cache/
 .cache/
 sentence_transformers/
-
+.mindsentry_cache/
+.gemini/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -23,6 +24,8 @@ sentence_transformers/
 # OS / editor
 .DS_Store
 Thumbs.db
+
+.gemini/
 
 
 

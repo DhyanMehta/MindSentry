@@ -16,6 +16,7 @@ from app.services.fusion_nn import (
     predict as nn_predict,
     MODEL_NAME,
 )
+from app.services.risk_calibration_service import calibrate_probability
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
@@ -164,10 +165,28 @@ def compute_scores(
     overall_spoof_risk = _clamp(1.0 - overall_integrity)
     confidence = _clamp(confidence - overall_spoof_risk * 0.25)
 
-    distress     = _clamp((stress + low_mood) / 2.0)
+    reliability_parts = []
+    if text_conf is not None:
+        reliability_parts.append((float(text_conf), 0.35))
+    if audio_conf is not None:
+        reliability_parts.append((float(audio_conf), 0.35))
+    if video_conf is not None:
+        reliability_parts.append((float(video_conf), 0.30))
+    if reliability_parts:
+        reliability_weight = sum(v * w for v, w in reliability_parts) / sum(w for _, w in reliability_parts)
+        confidence = _clamp(confidence * (0.8 + 0.2 * reliability_weight))
+
+    crisis_probability, calibration_source = calibrate_probability("crisis_score", crisis)
+    distress_probability, distress_calibration_source = calibrate_probability(
+        "emotional_distress_score",
+        _clamp((stress + low_mood) / 2.0),
+    )
+
+    distress     = distress_probability
+    crisis       = crisis_probability
     risk         = "high" if crisis >= 0.7 else ("medium" if crisis >= 0.4 else "low")
     wellness_f   = int(distress >= 0.5)
-    crisis_f     = int(crisis   >= 0.65)
+    crisis_f     = int(crisis >= 0.65)
 
     output_scores = {
         "stress_score": round(stress, 4),
@@ -189,6 +208,7 @@ def compute_scores(
         "social_withdrawal_score":    round(soc_w,    4),
         "crisis_score":               round(crisis,   4),
         "emotional_distress_score":   round(distress, 4),
+        "final_risk_probability":     round(crisis, 4),
         "mood_score":                 round(mood,     4),
         "wellness_flag":              wellness_f,
         "crisis_flag":                crisis_f,
@@ -207,6 +227,8 @@ def compute_scores(
         "audio_confidence":           round(float(audio_conf), 4) if audio_conf is not None else None,
         "video_confidence":           round(float(video_conf), 4) if video_conf is not None else None,
         "scoring_source":             source,
+        "calibration_source":         calibration_source,
+        "distress_calibration_source": distress_calibration_source,
         "model_name":                 MODEL_NAME,
         "model_input_features":       model_inputs,
         "model_output_scores":        output_scores,

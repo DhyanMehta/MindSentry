@@ -238,6 +238,24 @@ export const CheckInScreen = () => {
     setErrorMsg('');
     try {
       const bundle = await AssessmentService.loadAssessmentBundle(assessmentId);
+
+      // Handle pending assessments - offer to resume or start new
+      if (bundle.assessment?.status === 'pending') {
+        setErrorMsg('This check-in hasn\'t been completed yet. Start a new check-in or try again later.');
+        setPhase('error');
+        setHistoryLoading(false);
+        return;
+      }
+
+      // Handle failed assessments
+      if (bundle.assessment?.status === 'failed' || bundle.error) {
+        setErrorMsg(bundle.error || 'This check-in analysis encountered an error.');
+        setPhase('error');
+        setHistoryLoading(false);
+        return;
+      }
+
+      // Load completed results
       setResult(bundle.result);
       setRiskScore(bundle.risk);
       setRecommendations(bundle.recommendations);
@@ -249,7 +267,6 @@ export const CheckInScreen = () => {
       setHistoryLoading(false);
     }
   }, []);
-
   useEffect(() => {
     (async () => {
       const { status } = await Audio.requestPermissionsAsync();

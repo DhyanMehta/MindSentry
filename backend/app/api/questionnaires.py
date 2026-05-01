@@ -34,7 +34,6 @@ router = APIRouter(prefix="/questionnaires", tags=["Questionnaires"])
 @router.get("/templates", response_model=List[QuestionnaireTemplateResponse])
 def list_templates(session: Session = Depends(get_session)):
     ensure_daily_checkin_template(session)
-    session.commit()
     return session.exec(
         select(QuestionnaireTemplate).where(QuestionnaireTemplate.is_active == 1)
     ).all()
@@ -43,7 +42,6 @@ def list_templates(session: Session = Depends(get_session)):
 @router.get("/templates/{template_id}/questions", response_model=List[QuestionnaireQuestionResponse])
 def get_questions(template_id: str, session: Session = Depends(get_session)):
     ensure_daily_checkin_template(session)
-    session.commit()
     questions = session.exec(
         select(QuestionnaireQuestion)
         .where(QuestionnaireQuestion.template_id == template_id)

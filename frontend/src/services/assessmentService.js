@@ -148,8 +148,17 @@ const buildCheckInNarrative = ({ mood, answers, daySummary, foodSummary, audioUr
 };
 
 const fetchAnalysisBundle = async (assessmentId) => {
-  const [result, risk, recommendations] = await Promise.all([
-    ApiService.runAnalysis(assessmentId),
+  // 1. Run analysis first to generate the scores and recommendations in the backend
+  let result;
+  try {
+    result = await ApiService.runAnalysis(assessmentId);
+  } catch (err) {
+    console.error('[AssessmentService] runAnalysis failed:', err);
+    throw new Error(`Analysis failed: ${err?.message || 'Unknown error'}`);
+  }
+
+  // 2. Fetch the newly generated risk and recommendations now that they exist
+  const [risk, recommendations] = await Promise.all([
     ApiService.getRiskScore(assessmentId),
     ApiService.getRecommendations(assessmentId),
   ]);
@@ -214,18 +223,13 @@ export const AssessmentService = {
       ApiService.submitText(assessment.id, textPayload),
     ]);
 
-    const uploads = [];
     if (audioUri) {
-      uploads.push(ApiService.uploadAudio(assessment.id, audioUri));
+      await ApiService.uploadAudio(assessment.id, audioUri);
     }
     if (videoUri) {
-      uploads.push(ApiService.uploadVideo(assessment.id, videoUri));
+      await ApiService.uploadVideo(assessment.id, videoUri);
     } else if (photoUri) {
-      uploads.push(ApiService.uploadPhoto(assessment.id, photoUri));
-    }
-
-    if (uploads.length > 0) {
-      await Promise.all(uploads);
+      await ApiService.uploadPhoto(assessment.id, photoUri);
     }
 
     const { result, risk, recommendations, inference } = await fetchAnalysisBundle(assessment.id);
@@ -238,20 +242,14 @@ export const AssessmentService = {
       ? await ApiService.getAssessment(assessmentId)
       : await AssessmentService.getOrCreateActiveAssessment('Capture extension session');
 
-    const uploads = [];
-
     if (audioUri) {
-      uploads.push(ApiService.uploadAudio(assessment.id, audioUri));
+      await ApiService.uploadAudio(assessment.id, audioUri);
     }
     if (photoUri) {
-      uploads.push(ApiService.uploadPhoto(assessment.id, photoUri));
+      await ApiService.uploadPhoto(assessment.id, photoUri);
     }
     if (videoUri) {
-      uploads.push(ApiService.uploadVideo(assessment.id, videoUri));
-    }
-
-    if (uploads.length > 0) {
-      await Promise.all(uploads);
+      await ApiService.uploadVideo(assessment.id, videoUri);
     }
 
     const { result, risk, recommendations, inference } = await fetchAnalysisBundle(assessment.id);
@@ -260,20 +258,62 @@ export const AssessmentService = {
   },
 
   loadAssessmentBundle: async (assessmentId) => {
-    const [analysisResult, risk, recommendations] = await Promise.all([
-      ApiService.getAnalysisResult(assessmentId),
-      ApiService.getRiskScore(assessmentId),
-      ApiService.getRecommendations(assessmentId),
-    ]);
+    // First, fetch the assessment to check its status
+    let assessment;
+    try {
+      assessment = await ApiService.getAssessment(assessmentId);
+    } catch (err) {
+      throw new Error(`Could not load assessment: ${err?.message || 'Unknown error'}`);
+    }
 
-    return {
-      result: {
-        ...analysisResult,
-        assessment_id: analysisResult?.assessment_id || assessmentId,
-      },
-      risk: risk || null,
-      recommendations: Array.isArray(recommendations) ? recommendations : [],
-    };
+    // If assessment is still pending, no analysis results exist yet
+    if (assessment?.status === 'pending') {
+      return {
+        assessment,
+        result: null,
+        risk: null,
+        recommendations: [],
+      };
+    }
+
+    // If assessment failed, return with null results
+    if (assessment?.status === 'failed') {
+      return {
+        assessment,
+        result: null,
+        risk: null,
+        recommendations: [],
+        error: 'This check-in analysis failed to run. Please try again.',
+      };
+    }
+
+    // If completed, fetch all results
+    if (assessment?.status === 'completed') {
+      try {
+        const [analysisResult, risk, recommendations] = await Promise.all([
+          ApiService.getAnalysisResult(assessmentId),
+          ApiService.getRiskScore(assessmentId),
+          ApiService.getRecommendations(assessmentId),
+        ]);
+
+        return {
+          assessment,
+          result: {
+            ...analysisResult,
+            assessment_id: analysisResult?.assessment_id || assessmentId,
+          },
+          risk: risk || null,
+          recommendations: Array.isArray(recommendations) ? recommendations : [],
+        };
+      } catch (err) {
+        // If 404 on completed assessment, analysis may have been deleted or not generated
+        console.error('[AssessmentService] Error loading results for completed assessment:', err.message);
+        throw new Error(`Could not load results for this check-in: ${err?.message || 'Unknown error'}`);
+      }
+    }
+
+    // Unexpected status
+    throw new Error(`Assessment has unexpected status: ${assessment?.status}`);
   },
 
   computeWellnessScore: (summary) => {
