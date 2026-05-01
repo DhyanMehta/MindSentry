@@ -11,7 +11,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Animated from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -176,10 +183,75 @@ export const CheckInScreen = () => {
   const [riskScore, setRiskScore] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
+  const [showModelOutput, setShowModelOutput] = useState(false);
 
   const cameraRef = useRef(null);
   const audioTimerRef = useRef(null);
   const videoTimerRef = useRef(null);
+  const loadingPulse = useSharedValue(0);
+  const loadingFloat = useSharedValue(0);
+
+  useEffect(() => {
+    loadingPulse.value = withRepeat(
+      withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+    loadingFloat.value = withRepeat(
+      withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, [loadingFloat, loadingPulse]);
+
+  const loadingOrbStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: 0.96 + (loadingPulse.value * 0.08) },
+      { translateY: (loadingFloat.value - 0.5) * 10 },
+    ],
+    opacity: 0.92 + (loadingPulse.value * 0.08),
+  }));
+
+  const loadingHaloStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + (loadingPulse.value * 0.18) }],
+    opacity: 0.18 + (loadingPulse.value * 0.12),
+  }));
+
+  const renderAnalysisLoadingScreen = (title, stage, caption) => (
+    <View style={styles.fullscreenContainer}>
+      <View style={styles.loadingBackdropGlow} />
+      <Animated.View style={[styles.loadingHalo, loadingHaloStyle]} />
+      <Animated.View style={[styles.loadingOrb, loadingOrbStyle]}>
+        <Ionicons name="analytics-outline" size={36} color="#fff" />
+      </Animated.View>
+
+      <Text style={styles.processingTitle}>{title}</Text>
+      <Text style={styles.processingStage}>{stage}</Text>
+
+      <View style={styles.loadingModalityRail}>
+        <View style={styles.loadingModalityPill}>
+          <Ionicons name="document-text-outline" size={14} color="#fff" />
+          <Text style={styles.loadingModalityText}>Text</Text>
+        </View>
+        <View style={[styles.loadingModalityPill, styles.loadingModalityPillAlt]}>
+          <Ionicons name="mic-outline" size={14} color="#fff" />
+          <Text style={styles.loadingModalityText}>Voice</Text>
+        </View>
+        <View style={[styles.loadingModalityPill, styles.loadingModalityPillSoft]}>
+          <Ionicons name="videocam-outline" size={14} color="#fff" />
+          <Text style={styles.loadingModalityText}>Video</Text>
+        </View>
+      </View>
+
+      <View style={styles.loadingWaveCard}>
+        <View style={styles.loadingWaveLine} />
+        <View style={[styles.loadingWaveLine, styles.loadingWaveLineAlt]} />
+        <View style={styles.loadingWaveLine} />
+      </View>
+
+      <Text style={styles.loadingCaption}>{caption}</Text>
+    </View>
+  );
 
   const computeSessionScore = useCallback((analysisResult) => {
     if (analysisResult?.wellness_score != null) {
@@ -380,6 +452,7 @@ export const CheckInScreen = () => {
     }
 
     setErrorMsg('');
+    setShowModelOutput(false);
     setPhase('submitting');
     setProcessingStage('Creating your check-in session...');
 
@@ -432,6 +505,7 @@ export const CheckInScreen = () => {
     AssessmentService.clearCurrentId();
     setPhase('idle');
     setResult(null);
+    setShowModelOutput(false);
     setRiskScore(null);
     setRecommendations([]);
     setErrorMsg('');
@@ -502,25 +576,18 @@ export const CheckInScreen = () => {
   }
 
   if (phase === 'submitting') {
-    return (
-      <View style={styles.fullscreenContainer}>
-        <Animated.View>
-          <Ionicons name="sparkles" size={44} color="#fff" />
-        </Animated.View>
-        <Text style={styles.processingTitle}>Analyzing Wellness</Text>
-        <Text style={styles.processingStage}>{processingStage}</Text>
-        <ActivityIndicator color="rgba(255,255,255,0.8)" size="large" style={{ marginTop: 24 }} />
-      </View>
+    return renderAnalysisLoadingScreen(
+      'Analyzing Wellness',
+      processingStage,
+      'Reading your answers, voice patterns, and visual signals to build a grounded wellness summary.'
     );
   }
 
   if (historyLoading) {
-    return (
-      <View style={styles.fullscreenContainer}>
-        <ActivityIndicator color="rgba(255,255,255,0.85)" size="large" />
-        <Text style={[styles.processingTitle, { marginTop: 20 }]}>Loading saved result</Text>
-        <Text style={styles.processingStage}>Preparing your historical check-in insights...</Text>
-      </View>
+    return renderAnalysisLoadingScreen(
+      'Loading Saved Result',
+      'Rebuilding your earlier analysis with the latest view.',
+      'Pulling your stored result and formatting the scores for a quick review.'
     );
   }
 
@@ -617,40 +684,66 @@ export const CheckInScreen = () => {
         </View>
 
         <View style={styles.modelOutputCard}>
-          <View style={styles.modelOutputHeader}>
-            <Ionicons name="analytics-outline" size={20} color={colors.primary} />
-            <Text style={styles.modelOutputTitle}>Detailed Model Output</Text>
-          </View>
-
-          {modalityInsights.map((item) => (
-            <View key={item.key} style={styles.modelOutputRow}>
-              <View style={styles.modelOutputLeft}>
-                <Ionicons name={item.icon} size={16} color={colors.textSecondary} />
-                <Text style={styles.modelOutputLabel}>{item.title}</Text>
+          <Pressable onPress={() => setShowModelOutput((prev) => !prev)} style={styles.modelOutputHeaderButton}>
+            <View style={styles.modelOutputHeader}>
+              <Ionicons name="analytics-outline" size={20} color={colors.primary} />
+              <View style={styles.modelOutputHeaderTextWrap}>
+                <Text style={styles.modelOutputTitle}>Model Breakdown</Text>
+                <Text style={styles.modelOutputSubTitle}>
+                  Tap to see text, voice, and video scores
+                </Text>
               </View>
-              <Text style={styles.modelOutputValue}>{item.confidence} - {item.emotion}</Text>
             </View>
-          ))}
+            <Ionicons
+              name={showModelOutput ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={colors.textSecondary}
+            />
+          </Pressable>
 
-          <View style={styles.modelDivider} />
-
-          <View style={styles.modelOutputRow}>
-            <Text style={styles.modelOutputLabel}>Overall model confidence</Text>
-            <Text style={styles.modelOutputValue}>{confidenceScorePct}</Text>
-          </View>
-          <View style={styles.modelOutputRow}>
-            <Text style={styles.modelOutputLabel}>Input integrity</Text>
-            <Text style={styles.modelOutputValue}>{integrityPct}</Text>
-          </View>
-          <View style={styles.modelOutputRow}>
-            <Text style={styles.modelOutputLabel}>Spoof risk</Text>
-            <Text style={styles.modelOutputValue}>{spoofRiskPct}</Text>
+          <View style={styles.modelQuickRow}>
+            {modalityInsights.map((item) => (
+              <View key={item.key} style={styles.modelQuickChip}>
+                <Ionicons name={item.icon} size={14} color={colors.primary} />
+                <Text style={styles.modelQuickChipText}>{item.title}</Text>
+                <Text style={styles.modelQuickChipValue}>{item.confidence}</Text>
+              </View>
+            ))}
           </View>
 
-          {Object.keys(modelOutput).length > 0 ? (
-            <Text style={styles.modelOutputNote} numberOfLines={4}>
-              Raw model scores: {JSON.stringify(modelOutput)}
-            </Text>
+          {showModelOutput ? (
+            <Animated.View entering={FadeInDown.duration(240)}>
+              {modalityInsights.map((item) => (
+                <View key={item.key} style={styles.modelOutputRow}>
+                  <View style={styles.modelOutputLeft}>
+                    <Ionicons name={item.icon} size={16} color={colors.textSecondary} />
+                    <Text style={styles.modelOutputLabel}>{item.title}</Text>
+                  </View>
+                  <Text style={styles.modelOutputValue}>{item.confidence} - {item.emotion}</Text>
+                </View>
+              ))}
+
+              <View style={styles.modelDivider} />
+
+              <View style={styles.modelOutputRow}>
+                <Text style={styles.modelOutputLabel}>Overall model confidence</Text>
+                <Text style={styles.modelOutputValue}>{confidenceScorePct}</Text>
+              </View>
+              <View style={styles.modelOutputRow}>
+                <Text style={styles.modelOutputLabel}>Input integrity</Text>
+                <Text style={styles.modelOutputValue}>{integrityPct}</Text>
+              </View>
+              <View style={styles.modelOutputRow}>
+                <Text style={styles.modelOutputLabel}>Spoof risk</Text>
+                <Text style={styles.modelOutputValue}>{spoofRiskPct}</Text>
+              </View>
+
+              {Object.keys(modelOutput).length > 0 ? (
+                <Text style={styles.modelOutputNote} numberOfLines={4}>
+                  Raw model scores: {JSON.stringify(modelOutput)}
+                </Text>
+              ) : null}
+            </Animated.View>
           ) : null}
         </View>
 
@@ -1085,6 +1178,73 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 40,
   },
+  loadingBackdropGlow: {
+    position: 'absolute',
+    top: '10%',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  loadingHalo: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.45)',
+  },
+  loadingOrb: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.36)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  loadingModalityRail: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 22,
+    marginBottom: 14,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  loadingModalityPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  loadingModalityPillAlt: { backgroundColor: 'rgba(255,255,255,0.1)' },
+  loadingModalityPillSoft: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  loadingModalityText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  loadingWaveCard: {
+    width: '100%',
+    maxWidth: 270,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    marginBottom: 14,
+  },
+  loadingWaveLine: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    marginBottom: 10,
+  },
+  loadingWaveLineAlt: { width: '72%', backgroundColor: 'rgba(255,255,255,0.28)' },
+  loadingCaption: { fontSize: 13, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 19 },
   processingTitle: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 12, textAlign: 'center' },
   processingStage: { fontSize: 16, color: 'rgba(255,255,255,0.8)', textAlign: 'center' },
   retryButton: { marginTop: 32, backgroundColor: '#fff', paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16 },
@@ -1129,8 +1289,25 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     marginBottom: 16,
   },
-  modelOutputHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  modelOutputTitle: { marginLeft: 8, fontSize: 14, fontWeight: '800', color: colors.textPrimary },
+  modelOutputHeaderButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modelOutputHeader: { flexDirection: 'row', alignItems: 'center', flex: 1, marginBottom: 0 },
+  modelOutputHeaderTextWrap: { marginLeft: 8, flex: 1 },
+  modelOutputTitle: { fontSize: 14, fontWeight: '800', color: colors.textPrimary },
+  modelOutputSubTitle: { marginTop: 2, fontSize: 11.5, color: colors.textSecondary, lineHeight: 16 },
+  modelQuickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12, marginBottom: 2 },
+  modelQuickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  modelQuickChipText: { fontSize: 11.5, color: colors.textSecondary, fontWeight: '700' },
+  modelQuickChipValue: { fontSize: 11.5, color: colors.primary, fontWeight: '800' },
   modelOutputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 7 },
   modelOutputLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 },
   modelOutputLabel: { marginLeft: 7, fontSize: 13, color: colors.textSecondary, fontWeight: '600', flex: 1 },

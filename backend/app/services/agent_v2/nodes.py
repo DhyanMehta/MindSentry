@@ -4,10 +4,20 @@ import json
 import re
 from typing import Any, Dict, Optional
 
-try:
-    from langchain.prompts import ChatPromptTemplate
-except Exception:
-    from langchain_core.prompts import ChatPromptTemplate
+class ChatPromptTemplate:
+    def __init__(self, messages):
+        self._messages = messages
+
+    @classmethod
+    def from_messages(cls, messages):
+        return cls(messages)
+
+    def format_messages(self, **kwargs):
+        formatted = []
+        for role, template in self._messages:
+            content = template.format(**kwargs)
+            formatted.append({"role": "user" if role == "human" else role, "content": content})
+        return formatted
 
 from app.services.agent_v2.context import get_user_score_data
 from app.services.agent_v2.context_preparation import prepare_llm_context

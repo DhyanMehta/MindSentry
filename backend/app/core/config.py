@@ -107,6 +107,16 @@ class Settings(BaseSettings):
         default="llama-3.1-8b-instant",
         description="Groq model name for assistant inference"
     )
+
+    # OpenAI API (fallback LLM provider)
+    openai_api_key: str = Field(
+        default="",
+        description="OpenAI API key (fallback when Groq is unavailable)"
+    )
+    openai_model: str = Field(
+        default="gpt-4o-mini",
+        description="OpenAI model name for assistant fallback"
+    )
     assistant_llm_timeout_seconds: float = Field(
         default=12.0,
         description="Timeout for assistant LLM requests before falling back"

@@ -78,20 +78,19 @@ def explain_dominant_features(feature_vector: list[float], output_scores: Dict[s
     contribution_map = {
         "stress_score": {
             "text_stress": 0.25 * f["text_stress"],
-            "audio_stress": 0.20 * f["audio_stress"],
-            "audio_valence_inv": 0.08 * (1.0 - f["audio_emotion_valence"]),
-            "video_face_inverse": 0.12 * (1.0 - f["video_face"]),
-            "video_valence_inv": 0.05 * (1.0 - f["video_emotion_valence"]),
+            "audio_stress": 0.18 * f["audio_stress"],
+            "audio_valence_inv": 0.10 * (1.0 - f["audio_emotion_valence"]),
+            "video_valence_inv": 0.17 * (1.0 - f["video_emotion_valence"]),
             "q_stress": 0.20 * f["q_stress"],
             "q_sleep_pen": 0.10 * f["q_sleep_pen"],
         },
         "low_mood_score": {
             "text_mood_inverse": 0.30 * (1.0 - f["text_mood"]),
-            "audio_valence_inv": 0.08 * (1.0 - f["audio_emotion_valence"]),
-            "video_valence_inv": 0.07 * (1.0 - f["video_emotion_valence"]),
+            "audio_valence_inv": 0.10 * (1.0 - f["audio_emotion_valence"]),
+            "video_valence_inv": 0.12 * (1.0 - f["video_emotion_valence"]),
             "q_mood_inverse": 0.18 * (1.0 - f["q_mood"]),
             "q_sleep_pen": 0.17 * f["q_sleep_pen"],
-            "video_lighting_inverse": 0.10 * (1.0 - f["video_lighting"]),
+            "video_lighting_inverse": 0.03 * (1.0 - f["video_lighting"]),
             "text_stress": 0.10 * f["text_stress"],
         },
         "burnout_score": {
@@ -100,7 +99,8 @@ def explain_dominant_features(feature_vector: list[float], output_scores: Dict[s
             "q_sleep_pen": 0.10 * f["q_sleep_pen"],
         },
         "social_withdrawal_score": {
-            "video_face_inverse": 0.45 * (1.0 - f["video_face"]),
+            "video_valence_inv": 0.30 * (1.0 - f["video_emotion_valence"]),
+            "audio_valence_inv": 0.15 * (1.0 - f["audio_emotion_valence"]),
             "low_mood_score": 0.30 * low_mood,
             "stress_score": 0.15 * stress,
             "q_sleep_pen": 0.10 * f["q_sleep_pen"],
@@ -183,12 +183,19 @@ def build_feature_vector(
     text_mood   = float(text_features.get("mood_score",   0.5)) if has_text else 0.0
 
     # ── Audio ─────────────────────────────────────────────────
+    # Derive audio_stress from the ACTUAL SER emotion label, not silence/energy.
+    # Silence ratio and RMS energy are still included as raw features.
+    _AUDIO_STRESS_FROM_EMOTION = {
+        "anger": 0.85, "fear": 0.80, "sadness": 0.70, "disgust": 0.65,
+        "neutral": 0.25, "surprise": 0.35, "joy": 0.10,
+    }
     if has_audio:
         feat          = audio_features.get("features", {})
         silence       = float(feat.get("silence_ratio",  0.0))
         rms           = float(feat.get("rms_energy",     0.03))
         rms_norm      = min(rms / 0.1, 1.0)          # cap at 0.1 → maps to 1.0
-        audio_stress  = min(silence * 0.6 + (1.0 - rms_norm) * 0.4, 1.0)
+        audio_emo_raw = str(audio_features.get("audio_emotion", "neutral") or "neutral").lower()
+        audio_stress  = _AUDIO_STRESS_FROM_EMOTION.get(audio_emo_raw, 0.3)
     else:
         silence = rms_norm = audio_stress = 0.0
 

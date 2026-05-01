@@ -28,23 +28,26 @@ from sklearn.metrics import mean_absolute_error
 # ── Reproducibility ───────────────────────────────────────────
 RNG = np.random.default_rng(42)
 
-# ── Feature / output index constants ──────────────────────────
-# Input  (15 features — matches fusion_nn.py FEATURE_NAMES)
-IDX_TEXT_STRESS   = 0
-IDX_TEXT_MOOD     = 1
-IDX_AUDIO_STRESS  = 2
-IDX_AUDIO_SIL     = 3
-IDX_AUDIO_RMS     = 4
-IDX_VIDEO_FACE    = 5
-IDX_VIDEO_LIGHT   = 6
-IDX_Q_STRESS      = 7
-IDX_Q_MOOD        = 8
-IDX_Q_SLEEP_PEN   = 9
-IDX_HAS_TEXT      = 10
-IDX_HAS_AUDIO     = 11
-IDX_HAS_VIDEO     = 12
-IDX_HAS_Q         = 13
-IDX_N_MOD         = 14
+# ── Feature index constants (MUST match fusion_nn.py FEATURE_NAMES) ──
+# 17 features total:
+#  0  text_stress            0-1  stress derived from text emotion
+#  1  text_mood              0-1  mood derived from text emotion
+#  2  audio_stress           0-1  derived from audio SER emotion label
+#  3  audio_silence          0-1  proportion of silence frames
+#  4  audio_rms_norm         0-1  RMS energy normalised to [0,1]
+#  5  audio_emotion_valence  0-1  audio emotion mapped to valence
+#  6  video_face             0-1  fraction of frames with face detected (data quality)
+#  7  video_lighting         0-1  average frame brightness
+#  8  video_emotion_valence  0-1  video emotion mapped to valence
+#  9  q_stress               0-1  questionnaire stress_level / 10
+# 10  q_mood                 0-1  questionnaire mood_level / 10
+# 11  q_sleep_pen            0-1  sleep deprivation penalty
+# 12  has_text               0/1  text modality present
+# 13  has_audio              0/1  audio modality present
+# 14  has_video              0/1  video modality present
+# 15  has_q                  0/1  questionnaire modality present
+# 16  n_modalities           0-1  count of available modalities / 4
+N_FEATURES = 17
 
 # Output (5 targets)
 OUT_STRESS    = 0
@@ -60,7 +63,7 @@ def _noise(sigma: float = 0.04) -> float:
 
 def _sample_scenario(scenario: str, n: int) -> tuple[np.ndarray, np.ndarray]:
     """Generate n samples for a given wellness archetype."""
-    X = np.zeros((n, 15))
+    X = np.zeros((n, N_FEATURES))
     y = np.zeros((n, 5))
 
     if scenario == "healthy":
@@ -68,16 +71,21 @@ def _sample_scenario(scenario: str, n: int) -> tuple[np.ndarray, np.ndarray]:
             has = RNG.choice([True, False], size=4, p=[0.85, 0.15])
             t_stress = max(0.0, RNG.uniform(0.05, 0.25) + _noise())
             t_mood   = max(0.0, RNG.uniform(0.70, 0.95) + _noise())
+            audio_emo_val = max(0.0, RNG.uniform(0.70, 0.95) + _noise())  # happy/calm
+            video_emo_val = max(0.0, RNG.uniform(0.60, 0.95) + _noise())  # happy/neutral
+            audio_stress  = max(0.0, 1.0 - audio_emo_val + _noise(0.02))  # low stress
             X[i] = [
                 t_stress, t_mood,
-                max(0, RNG.uniform(0.05, 0.25) + _noise()), # audio_stress
-                max(0, RNG.uniform(0.00, 0.15) + _noise()), # audio_silence
-                max(0, RNG.uniform(0.30, 0.70) + _noise()), # audio_rms_norm
-                max(0, RNG.uniform(0.70, 1.00) + _noise()), # video_face
-                max(0, RNG.uniform(0.65, 1.00) + _noise()), # video_lighting
-                max(0, RNG.uniform(0.05, 0.30) + _noise()), # q_stress
-                max(0, RNG.uniform(0.70, 0.95) + _noise()), # q_mood
-                max(0, RNG.uniform(0.00, 0.15) + _noise()), # q_sleep_pen
+                audio_stress,                                       # audio_stress (from emotion)
+                max(0, RNG.uniform(0.00, 0.15) + _noise()),        # audio_silence
+                max(0, RNG.uniform(0.30, 0.70) + _noise()),        # audio_rms_norm
+                audio_emo_val,                                      # audio_emotion_valence
+                max(0, RNG.uniform(0.70, 1.00) + _noise()),        # video_face (data quality)
+                max(0, RNG.uniform(0.65, 1.00) + _noise()),        # video_lighting
+                video_emo_val,                                      # video_emotion_valence
+                max(0, RNG.uniform(0.05, 0.30) + _noise()),        # q_stress
+                max(0, RNG.uniform(0.70, 0.95) + _noise()),        # q_mood
+                max(0, RNG.uniform(0.00, 0.15) + _noise()),        # q_sleep_pen
                 float(has[0]), float(has[1]), float(has[2]), float(has[3]),
                 sum(has) / 4.0,
             ]
@@ -92,17 +100,22 @@ def _sample_scenario(scenario: str, n: int) -> tuple[np.ndarray, np.ndarray]:
     elif scenario == "mildly_stressed":
         for i in range(n):
             has = RNG.choice([True, False], size=4, p=[0.75, 0.25])
+            audio_emo_val = max(0.0, RNG.uniform(0.35, 0.60) + _noise())
+            video_emo_val = max(0.0, RNG.uniform(0.35, 0.60) + _noise())
+            audio_stress  = max(0.0, 1.0 - audio_emo_val + _noise(0.03))
             X[i] = [
-                max(0, RNG.uniform(0.35, 0.60) + _noise()),
-                max(0, RNG.uniform(0.40, 0.65) + _noise()),
-                max(0, RNG.uniform(0.30, 0.55) + _noise()),
-                max(0, RNG.uniform(0.15, 0.35) + _noise()),
-                max(0, RNG.uniform(0.25, 0.55) + _noise()),
-                max(0, RNG.uniform(0.50, 0.85) + _noise()),
-                max(0, RNG.uniform(0.45, 0.75) + _noise()),
-                max(0, RNG.uniform(0.35, 0.60) + _noise()),
-                max(0, RNG.uniform(0.40, 0.65) + _noise()),
-                max(0, RNG.uniform(0.10, 0.35) + _noise()),
+                max(0, RNG.uniform(0.35, 0.60) + _noise()),        # text_stress
+                max(0, RNG.uniform(0.40, 0.65) + _noise()),        # text_mood
+                audio_stress,                                       # audio_stress
+                max(0, RNG.uniform(0.15, 0.35) + _noise()),        # audio_silence
+                max(0, RNG.uniform(0.25, 0.55) + _noise()),        # audio_rms_norm
+                audio_emo_val,                                      # audio_emotion_valence
+                max(0, RNG.uniform(0.50, 0.85) + _noise()),        # video_face
+                max(0, RNG.uniform(0.45, 0.75) + _noise()),        # video_lighting
+                video_emo_val,                                      # video_emotion_valence
+                max(0, RNG.uniform(0.35, 0.60) + _noise()),        # q_stress
+                max(0, RNG.uniform(0.40, 0.65) + _noise()),        # q_mood
+                max(0, RNG.uniform(0.10, 0.35) + _noise()),        # q_sleep_pen
                 float(has[0]), float(has[1]), float(has[2]), float(has[3]),
                 sum(has) / 4.0,
             ]
@@ -117,14 +130,19 @@ def _sample_scenario(scenario: str, n: int) -> tuple[np.ndarray, np.ndarray]:
     elif scenario == "anxious_depressed":
         for i in range(n):
             has = RNG.choice([True, False], size=4, p=[0.70, 0.30])
+            audio_emo_val = max(0.0, RNG.uniform(0.10, 0.35) + _noise())  # sad/fear
+            video_emo_val = max(0.0, RNG.uniform(0.10, 0.35) + _noise())
+            audio_stress  = max(0.0, 1.0 - audio_emo_val + _noise(0.03))
             X[i] = [
                 max(0, RNG.uniform(0.55, 0.80) + _noise()),
                 max(0, RNG.uniform(0.20, 0.45) + _noise()),
-                max(0, RNG.uniform(0.50, 0.75) + _noise()),
+                audio_stress,
                 max(0, RNG.uniform(0.40, 0.70) + _noise()),
                 max(0, RNG.uniform(0.10, 0.35) + _noise()),
-                max(0, RNG.uniform(0.30, 0.65) + _noise()),
+                audio_emo_val,
+                max(0, RNG.uniform(0.30, 0.65) + _noise()),        # video_face (varies)
                 max(0, RNG.uniform(0.30, 0.60) + _noise()),
+                video_emo_val,
                 max(0, RNG.uniform(0.55, 0.80) + _noise()),
                 max(0, RNG.uniform(0.20, 0.45) + _noise()),
                 max(0, RNG.uniform(0.35, 0.65) + _noise()),
@@ -142,14 +160,19 @@ def _sample_scenario(scenario: str, n: int) -> tuple[np.ndarray, np.ndarray]:
     elif scenario == "burnt_out":
         for i in range(n):
             has = RNG.choice([True, False], size=4, p=[0.65, 0.35])
+            audio_emo_val = max(0.0, RNG.uniform(0.05, 0.30) + _noise())
+            video_emo_val = max(0.0, RNG.uniform(0.05, 0.30) + _noise())
+            audio_stress  = max(0.0, 1.0 - audio_emo_val + _noise(0.03))
             X[i] = [
                 max(0, RNG.uniform(0.50, 0.75) + _noise()),
                 max(0, RNG.uniform(0.10, 0.35) + _noise()),
-                max(0, RNG.uniform(0.45, 0.70) + _noise()),
+                audio_stress,
                 max(0, RNG.uniform(0.50, 0.80) + _noise()),
                 max(0, RNG.uniform(0.05, 0.25) + _noise()),
+                audio_emo_val,
                 max(0, RNG.uniform(0.15, 0.45) + _noise()),
                 max(0, RNG.uniform(0.20, 0.50) + _noise()),
+                video_emo_val,
                 max(0, RNG.uniform(0.50, 0.75) + _noise()),
                 max(0, RNG.uniform(0.10, 0.35) + _noise()),
                 max(0, RNG.uniform(0.50, 0.80) + _noise()),
@@ -167,14 +190,19 @@ def _sample_scenario(scenario: str, n: int) -> tuple[np.ndarray, np.ndarray]:
     elif scenario == "crisis":
         for i in range(n):
             has = RNG.choice([True, False], size=4, p=[0.60, 0.40])
+            audio_emo_val = max(0.0, RNG.uniform(0.00, 0.20) + _noise(0.02))
+            video_emo_val = max(0.0, RNG.uniform(0.00, 0.20) + _noise(0.02))
+            audio_stress  = max(0.0, 1.0 - audio_emo_val + _noise(0.02))
             X[i] = [
                 max(0, RNG.uniform(0.78, 1.00) + _noise(0.02)),
                 max(0, RNG.uniform(0.00, 0.22) + _noise(0.02)),
-                max(0, RNG.uniform(0.70, 1.00) + _noise(0.02)),
+                audio_stress,
                 max(0, RNG.uniform(0.65, 1.00) + _noise(0.02)),
                 max(0, RNG.uniform(0.00, 0.15) + _noise(0.02)),
+                audio_emo_val,
                 max(0, RNG.uniform(0.00, 0.25) + _noise(0.02)),
                 max(0, RNG.uniform(0.10, 0.35) + _noise(0.02)),
+                video_emo_val,
                 max(0, RNG.uniform(0.78, 1.00) + _noise(0.02)),
                 max(0, RNG.uniform(0.00, 0.22) + _noise(0.02)),
                 max(0, RNG.uniform(0.65, 1.00) + _noise(0.02)),
@@ -243,6 +271,10 @@ def train(total_samples: int = 6000):
     print(f"\nTrain: {len(X_train)} samples  |  Val: {len(X_val)} samples")
     print(f"Input  shape: {X_train.shape[1]} features")
     print(f"Output shape: {y_train.shape[1]} targets")
+
+    assert X_train.shape[1] == N_FEATURES, (
+        f"Feature mismatch! Expected {N_FEATURES}, got {X_train.shape[1]}"
+    )
 
     # ── Model ─────────────────────────────────────────────────
     print("\nBuilding sklearn MLPRegressor pipeline...")
